@@ -3,7 +3,7 @@
 ini_set('display_errors', 'stderr');
 
 if ($argc > 2) {
-    echo "Too many arguments\n";
+    fwrite(STDERR, "Too many arguments\n");
     exit(10);
 }
 
@@ -12,6 +12,9 @@ if ($argc == 2) {
         echo "Usage: php parse.php [--help]\n";
         echo "Takes input from STDIN\n";
         exit(0);
+    }
+    else {
+        exit(10);
     }
 }
 
@@ -23,7 +26,13 @@ function fce($x) {
 function check_symb($symb) {
     if (preg_match('/^(LF|GF|TF)@[a-zA-Z_$&%!?-][a-zA-Z_$&%!?0-9-]*$/', $symb)){
         return 0;
-    }elseif (preg_match('/^int@[+-]?[0-9]+$/', $symb)) {
+    }elseif (preg_match('/^int@[+-]?0$/', $symb)) { #zero
+        return 0;
+    }elseif (preg_match('/^int@[+-]?[1-9][0-9]*(_[0-9]+)*$/', $symb)) { #decimal number
+        return 0;
+    }elseif (preg_match('/^int@[+-]?0[xX][0-9a-fA-F]+(_[0-9a-fA-F]+)*$/', $symb)) { #hexadecimal number
+        return 0;
+    }elseif (preg_match('/^int@[+-]?0[oO]?[0-7]+(_[0-7]+)*$/', $symb)) { #octal number
         return 0;
     }elseif(preg_match('/^nil@nil$/', $symb)){
         return 0;
@@ -37,14 +46,14 @@ function check_symb($symb) {
 }
 
 function check_var($var) {
-    if (preg_match('/^(LF|GF|TF)@[a-zA-Z_$&%!?-][a-zA-Z_$&%!?0-9-]*$/', $var) == 0) {
-        return 1;
+    if (preg_match('/^(LF|GF|TF)@[a-zA-Z_$&%*!?-][a-zA-Z_$&%*!?0-9-]*$/', $var)) {
+        return 0;
     }
-    return 0;
+    return 1;
 }
 
 function check_label($label) {
-    if (preg_match('/^[a-zA-Z_$&%!?-][a-zA-Z_$&%!?0-9-]*$/', $label)) {
+    if (preg_match('/^[a-zA-Z_$&%*!?-][a-zA-Z_$&%*!?0-9-]*$/', $label)) {
         return 0;
     }
     return 1;
@@ -115,7 +124,7 @@ foreach($lines as $line) {
                 exit(23);
             }
             if (check_var($line[1])){
-                echo "kurva";
+                echo $line[1];
                 exit(23);
             };
             break;
@@ -449,6 +458,9 @@ foreach($lines as $line) {
             if (count($line) != 2) {
                 exit(23);
             }
+            if (check_symb($line[1])) {
+                exit(23);
+            }
             break;
         case "BREAK":
             if (count($line) != 1) {
@@ -464,11 +476,11 @@ $xml = new XMLWriter();
 $xml->openMemory();
 $xml->startDocument('1.0', 'UTF-8');
 $xml->setIndent(true);
-
+$xml->setIndentString("    ");
 $xml->startElement('program');
 $xml->writeAttribute('language', 'IPPcode23');
 
-function write_instruction($line, $xml, $id) {
+function write_instruction($line, $xml, $id, $types) {
     $xml->startElement('instruction');
     $xml->writeAttribute('order', $id);
     $xml->writeAttribute('opcode', $line[0]);
@@ -493,7 +505,7 @@ function write_instruction($line, $xml, $id) {
             $line[$i] = explode('@', $line[$i])[1];
             $xml->writeAttribute('type', 'nil');
         }
-        else if(str_starts_with($line[$i], 'type@')) {
+        else if(in_array($line[$i], $types)) {
             $xml->writeAttribute('type', 'type');
         }
         else {
@@ -504,18 +516,16 @@ function write_instruction($line, $xml, $id) {
     }
     $xml->endElement();
 }
-
+$types = array("int", "bool", "string", "nil");
 $id = 1;
 foreach($lines as $line) {
     if($line[0] == ".IPPCODE23") {
         continue;
     }
-    write_instruction($line, $xml, $id);
+    write_instruction($line, $xml, $id, $types);
     $id++;
 }
-
 $xml->endElement();
 $xml->endDocument();
 echo $xml->flush();
-
 ?>
