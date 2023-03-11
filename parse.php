@@ -1,9 +1,12 @@
 <?php
 
+//nastavení pro zobrazení chyb na standardní chybový výstup
 ini_set('display_errors', 'stderr');
 
+//třída pro zpracování argumentů programu
 class parse_args {
 
+    //konstruktor zkontroluje počet argumentů a zavolá metodu pro výpis nápovědy, pokud je vyžádána
     function __construct($argc, $argv) {
         if ($argc > 2) {
             fwrite(STDERR, "Too many arguments\n");
@@ -14,23 +17,30 @@ class parse_args {
                 $this->write_help();
             }
             else {
+                fwrite(STDERR, "Invalid argument/s, try --help\n");
                 exit(10);
             }
         }
     }
 
-    public function write_help() {
-        echo "Usage: parse.php [--help]\n";
-        echo "Program takes input from STDIN and outputs XML to stdout.\n";
+    //metoda pro tisk nápovědy
+    private function write_help() {
+        echo "Použití: parse.php [--help]\n";
+        echo "Program načítá IPPcodde23 ze standardního vstupu a tiskne 
+        jeho XML reprezentaci na standardní výstup.\n";
         exit(0);
     }
 }
 
-class parse_file {
+//třída pro zpracování vstupu (odstranění komentářů a prázdných řádků, 
+//kontrola hlavičky, příprava vstupu na další použití)
+class parse_input {
 
     public $input;
     public $lines;
 
+    //konstruktor načte vstup ze STDIN, odstraní komentáře a prázdné řádky a rozdělí vstup
+    //na pole jednotlivých instrukcí s jejich parametry
     function __construct() {
         $this->input = file_get_contents('php://stdin', 'r');
         $this->lines = explode("\n", $this->input);
@@ -38,10 +48,11 @@ class parse_file {
         $this->lines = preg_replace('/\s+/', ' ', $this->lines);
         $this->lines = array_map('trim', $this->lines);
         $this->lines = array_values(array_filter($this->lines));
-        $this->check_header();
+        $this->check_header_split_lines();
     }
 
-    public function check_header() {
+    //metoda pro kontrolu hlavičky a rozdělení jednotlivých instrukcí a jejich parametrů do pole
+    private function check_header_split_lines() {
         $index = 0;
         foreach ($this->lines as $line){
             $line = explode(' ', $line);
@@ -54,14 +65,17 @@ class parse_file {
         }
     } 
 
-    public function remove_comments($x) {
+    //metoda pro odstranění komentářů
+    private function remove_comments($x) {
         $x = explode('#', $x)[0];
         return $x;
     }
 }
 
+//třída pro zpracování jednotlivých instrukcí
 class parse_instruction {
 
+    //název instrukce a až tři parametry
     public $name;
     public $arg1 = NULL;
     public $arg2 = NULL;
@@ -71,9 +85,11 @@ class parse_instruction {
         $this->check_params($line);
     }
 
-    public function check_params($line) {
+    //metoda pro kontrolu parametrů instrukce (počet, typ, hodnota)
+    private function check_params($line) {
         $this->name = $line[0];
-        switch ($line[0]) {
+        //switch zkontroluje název instrukce a zavolá potřebné metody pro kontrolu parametrů
+        switch ($this->name) {
             case "INT2CHAR":
             case "STRLEN":
             case "MOVE":
@@ -207,47 +223,51 @@ class parse_instruction {
                 }
                 break;
             default:
-                exit(22);
+                exit(22); //návratový kód 22 v případě chybné instrukce chybná instrukce
         }
     }
 
-    public function check_symb($symb) {
+    //metoda na kontrolu parametrů typu <symb>
+    private function check_symb($symb) {
         if (preg_match('/^(LF|GF|TF)@[a-zA-Z_$&%!?-][a-zA-Z_$&%!?0-9-]*$/', $symb)){
             return 0;
-        }elseif (preg_match('/^int@[+-]?0$/', $symb)) { #zero
+        }elseif (preg_match('/^int@[+-]?0$/', $symb)) { //nula (kladná i záporná)
             return 0;
-        }elseif (preg_match('/^int@[+-]?[1-9][0-9]*(_[0-9]+)*$/', $symb)) { #decimal number
+        }elseif (preg_match('/^int@[+-]?[1-9][0-9]*(_[0-9]+)*$/', $symb)) { //celé číslo (regulární výraz z oficiální dokumentace php)
             return 0;
-        }elseif (preg_match('/^int@[+-]?0[xX][0-9a-fA-F]+(_[0-9a-fA-F]+)*$/', $symb)) { #hexadecimal number
+        }elseif (preg_match('/^int@[+-]?0[xX][0-9a-fA-F]+(_[0-9a-fA-F]+)*$/', $symb)) { //hexadecimální číslo (regulární výraz z oficiální dokumentace php)
             return 0;
-        }elseif (preg_match('/^int@[+-]?0[oO]?[0-7]+(_[0-7]+)*$/', $symb)) { #octal number
+        }elseif (preg_match('/^int@[+-]?0[oO]?[0-7]+(_[0-7]+)*$/', $symb)) { //oktalové číslo (regulární výraz z oficiální dokumentace php)
             return 0;
         }elseif(preg_match('/^nil@nil$/', $symb)){
             return 0;
         }elseif(preg_match('/^bool@(true|false)$/', $symb)){
             return 0;
-        }elseif(preg_match('/^string@([^#\\\]|(\\\\[0-9]{3}))*$/', $symb)){
+        }elseif(preg_match('/^string@([^#\\\]|(\\\\[0-9]{3}))*$/', $symb)){ //regulární výraz na kontrolu řetězců
             return 0;
         }else{
             return 1;
         }
     }
 
-    public function check_var($var) {
+    //metoda na kontrolu parametrů typu <var>
+    private function check_var($var) {
         if (preg_match('/^(LF|GF|TF)@[a-zA-Z_$&%*!?-][a-zA-Z_$&%*!?0-9-]*$/', $var)) {
             return 0;
         }
         return 1;
     }
 
-    public function check_label($label) {
+    //metoda na kontrolu parametrů typu <label>
+    private function check_label($label) {
         if (preg_match('/^[a-zA-Z_$&%*!?-][a-zA-Z_$&%*!?0-9-]*$/', $label)) {
             return 0;
         }
         return 1;
     }
 
-    public function check_type($type) {
+    //metoda na kontrolu parametrů typu <type>
+    private function check_type($type) {
         if (preg_match('/^(int|string|bool)$/', $type) == 0) {
             return 1;
         }
@@ -255,27 +275,13 @@ class parse_instruction {
     }
 }
 
-$args = new parse_args($argc, $argv);
-
-$file = new parse_file();
-
-$header = 0;
-$instructions = array();
-
-foreach($file->lines as $line) {
-    if ($header == 0) {
-        $header++;
-        continue;
-    }
-    $instructions[] = new parse_instruction($line);
-}
-
-$xml_out = new write_xml($instructions);
-
+//třída pro výpis XML reprezentace programu
 class write_xml {
-    public $xml;
+
+    private $xml;
     public $types = ["int", "string", "bool", "nil"];
 
+    //konstruktor nastaví XMLWriter a volá metodu pro výpis XML
     function __construct($instructions) {
         $this->xml = new XMLWriter();
         $this->xml->openMemory();
@@ -288,7 +294,8 @@ class write_xml {
         $this->end_xml();
     }
         
-    public function write_instructions($instructions) {
+    //metoda pro výpis XML reprezentace všech instrukcí
+    private function write_instructions($instructions) {
         $id = 1;
         foreach($instructions as $instruction) {
             $this->xml->startElement('instruction');
@@ -308,7 +315,8 @@ class write_xml {
         }
     }
 
-    public function write_arg($arg, $id) {
+    //metoda pro výpis XML reprezentace jednoho parametru instrukce
+    private function write_arg($arg, $id) {
         $this->xml->startElement('arg' . $id);
         if(str_starts_with($arg, 'GF@') || str_starts_with($arg, 'LF@') || str_starts_with($arg, 'TF@')) {
             $this->xml->writeAttribute('type', 'var');
@@ -339,10 +347,32 @@ class write_xml {
         $this->xml->endElement();
     }
 
-    public function end_xml() {
+    //metoda pro ukončení XML dokumentu a výpis na standardní výstup
+    private function end_xml() {
         $this->xml->endElement();
         $this->xml->endDocument();
         echo $this->xml->flush();
     }
 }
+
+//zpracování argumentů programu
+$args = new parse_args($argc, $argv);
+
+//zpracování vstupu (STDIN)
+$file = new parse_input();
+
+$header = 0;
+$instructions = array(); //pole objektů třídy parse_instruction
+
+foreach($file->lines as $line) {
+    if ($header == 0) {
+        $header++;
+        continue;
+    }
+    $instructions[] = new parse_instruction($line); //přidání nové intrukce do pole instrukcí
+}
+
+//výpis XML reprezentace programu
+$xml_out = new write_xml($instructions);
+
 ?>
