@@ -6,8 +6,20 @@ ini_set('display_errors', 'stderr');
 //třída pro zpracování argumentů programu
 class parse_args {
 
-    //konstruktor zkontroluje počet argumentů a zavolá metodu pro výpis nápovědy, pokud je vyžádána
-    function __construct($argc, $argv) {
+    public static $instance;
+
+    private function __construct() {}
+
+    //metoda pro vytvoření instance třídy, zajišťující pouze jednu instanci třídy
+    public static function create(){
+        if (self::$instance == NULL) {
+            self::$instance = new parse_args();
+        }
+        return self::$instance;
+    }
+
+    //metoda pro kontrolu argumentů programu
+    public function check_args($argc, $argv) {
         if ($argc > 2) {
             fwrite(STDERR, "Too many arguments\n");
             exit(10);
@@ -38,10 +50,20 @@ class parse_input {
 
     public $input;
     public $lines;
+    public static $instance;
 
-    //konstruktor načte vstup ze STDIN, odstraní komentáře a prázdné řádky a rozdělí vstup
-    //na pole jednotlivých instrukcí s jejich parametry
-    function __construct() {
+    private function __construct() {}
+
+    //metoda pro vytvoření instance třídy, zajišťující pouze jednu instanci třídy
+    public static function create(){
+        if (self::$instance == NULL) {
+            self::$instance = new parse_input();
+        }
+        return self::$instance;
+    }
+
+    //metoda pro načtení vstupu ze standardního vstupu a zpracování pro další použití
+    public function parse(){
         $this->input = file_get_contents('php://stdin', 'r');
         $this->lines = explode("\n", $this->input);
         $this->lines = array_map(array($this, 'remove_comments'), $this->lines);
@@ -278,11 +300,22 @@ class parse_instruction {
 //třída pro výpis XML reprezentace programu
 class write_xml {
 
+    public static $instance;
     private $xml;
     public $types = ["int", "string", "bool", "nil"];
 
-    //konstruktor nastaví XMLWriter a volá metodu pro výpis XML
-    function __construct($instructions) {
+    private function __construct() {}
+
+    //metoda pro vytvoření instance třídy, zajišťující pouze jednu instanci třídy
+    public static function create() {
+        if (self::$instance == null) {
+            self::$instance = new write_xml();
+        }
+        return self::$instance;
+    }
+
+    //metoda pro vytvoření XML reprezentace vstupního programu
+    public function get_xml($instructions) {
         $this->xml = new XMLWriter();
         $this->xml->openMemory();
         $this->xml->startDocument('1.0', 'UTF-8');
@@ -356,10 +389,12 @@ class write_xml {
 }
 
 //zpracování argumentů programu
-$args = new parse_args($argc, $argv);
+$args = parse_args::create();
+$args->check_args($argc, $argv);
 
 //zpracování vstupu (STDIN)
-$file = new parse_input();
+$file = parse_input::create();
+$file->parse();
 
 $header = 0;
 $instructions = array(); //pole objektů třídy parse_instruction
@@ -373,6 +408,7 @@ foreach($file->lines as $line) {
 }
 
 //výpis XML reprezentace programu
-$xml_out = new write_xml($instructions);
+$xml_out = write_xml::create();
+$xml_out->get_xml($instructions);
 
 ?>

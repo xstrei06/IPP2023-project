@@ -21,8 +21,10 @@ Generování XML reprezentace vstupního programu má na starost třída write_x
 ### Rozšíření
 
 Skript jsem implementoval v rámci OOP rozšíření NVP.
-Ze tříd ``parse_args``, ``parse_input`` a ``write_xml`` je za celou dobu běhu programu vytvořen pouze jediný objekt, jedná se tedy o návrhový vzor **Jedináček** (Singleton). Veškerá funkcionalita těchto tříd se provede již při zavolání konstruktoru, metody jsou tedy privátní a nelze je využít mimo zkonstruování objektu. Atributy třídy parse_input ``$lines`` a ``$input`` jsou veřejné, protože je s nimi dále nutné pracovat. Načtení vstupu, jeho zpracování a vygenerování XML se provede jednorázově, proto mi Jedináček dával největší smysl. Ze třídy ``parse_instruction`` je vytvořen objekt pro každou instrukci vstupního programu a následně se podle těchto objektů generuje XML reprezentace IPPcode23 programu. Metody třídy ``parse_instruction`` jsou též privátní, protože vše potřebné proběhne při samotném zkonstruování objektu instrukce. Atributy této třídy jsou veřejné, protože je nutné s nimi pracovat při generování XML.
+Třídy ``parse_args``, ``parse_input`` a ``write_xml`` se řídí návrhovým vzorem **Jedináček** (Singleton). Načtení vstupu, jeho zpracování a vygenerování XML se provede jednorázově a je potřebné provést pouze jedenkrát za celou dobu běhu programu, proto mi Jedináček dával největší smysl. Ze třídy ``parse_instruction`` je vytvořen objekt pro každou instrukci vstupního programu a následně se podle těchto objektů generuje XML reprezentace IPPcode23 programu. Metody třídy ``parse_instruction`` jsou privátní, protože vše potřebné proběhne při samotném zkonstruování objektu instrukce. Atributy této třídy jsou veřejné, protože je nutné s nimi pracovat při generování XML.
 
 ### Testování
 
 K testování skriptu jsem využil [studentské testy](https://gist.github.com/sproott/d534b327752a5bb2d41139b9f9e005fa) společně s testy poskytnutými v VUT IS.
+
+https://gist.github.com/sproott/d534b327752a5bb2d41139b9f9e005fa
