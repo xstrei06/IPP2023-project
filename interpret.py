@@ -3,14 +3,6 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 import re
-import exceptions as ex
-
-
-def valid_file(filename):
-    if not os.path.isfile(filename):
-        sys.stderr.write(f"{filename} is not a valid file")
-        sys.exit(11)
-    return filename
 
 
 instruction_args = {
@@ -66,9 +58,9 @@ class ArgumentParser:
                                               add_help=False, formatter_class=argparse.RawTextHelpFormatter)
         self.parser.add_argument('--help', action="store_true",
                                  help='Display help message and exit (if no other arguments are specified).')
-        self.parser.add_argument("--source", metavar="file", type=valid_file, required=False,
+        self.parser.add_argument("--source", metavar="file", type=self.__valid_file, required=False,
                                  help="XML file to be interpreted (if not specified, reads from stdin)")
-        self.parser.add_argument("--input", metavar="file", type=valid_file, required=False,
+        self.parser.add_argument("--input", metavar="file", type=self.__valid_file, required=False,
                                  help="Program input file (if not specified, reads from stdin)")
         self.parser.epilog = "Note: At least one of the arguments --source=file or --input=file must be specified."
 
@@ -83,6 +75,12 @@ class ArgumentParser:
             sys.exit(0)
         elif self.input is None and self.source is None:
             self.parser.error("Either source or input has to be specified.")
+
+    def __valid_file(self, filename):
+        if not os.path.isfile(filename):
+            sys.stderr.write(f"{filename} is not a valid file")
+            sys.exit(11)
+        return filename
 
     def read_source(self):
         if not self.src_opened:
@@ -223,6 +221,7 @@ class Main:
         return instructions
 
 
+# noinspection PyArgumentList
 class Instruction:
     def __init__(self, instruction):
         self.opcode = instruction.attrib["opcode"]
@@ -289,11 +288,13 @@ class Instruction:
                                     'type': 'int'}
             elif i.attrib["type"] == "bool":
                 if i.text == "true":
-                    self.args[i.tag] = {'val': 'true',
+                    self.args[i.tag] = {'val': True,
                                         'type': 'bool'}
                 elif i.text == "false":
-                    self.args[i.tag] = {'val': 'false',
+                    self.args[i.tag] = {'val': False,
                                         'type': 'bool'}
+                else:
+                    sys.exit(57)
             elif i.attrib["type"] == "string":
                 self.args[i.tag] = {'val': i.text,
                                     'type': 'string'}
@@ -304,7 +305,8 @@ class Instruction:
                 self.args[i.tag] = {'val': i.text,
                                     'type': 'type'}
             elif i.attrib["type"] == "nil":
-                self.args[i.tag] = {'val': None}
+                self.args[i.tag] = {'val': None,
+                                    'type': 'nil'}
 
     def __get_frame(self, var, glob_frame, temp_frame, local_frame):
         if var.startswith("GF@"):
@@ -314,13 +316,14 @@ class Instruction:
         elif var.startswith("LF@"):
             return local_frame
         else:
-            sys.exit(54)
+            sys.exit(55)
 
     def execute(self, m):
         self.__set_args(self.instruction, main.global_frame, main.temporary_frame, main.frame_stack[0])
         self.invoke_method[self.opcode](m)
 
     def __move(self, m):
+        self.__check_dest_var()
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'], self.args['arg2']['val'])
 
     def __createframe(self, m):
@@ -338,6 +341,10 @@ class Instruction:
         m.temporary_frame = m.frame_stack.pop(0)
 
     def __defvar(self, m):
+        if self.args['arg1']['type'] != 'var':
+            sys.exit(53)
+        if self.args['arg1']['frame'] is None:
+            sys.exit(55)
         self.args['arg1']['frame'].add_var(self.args['arg1']['var'])
 
     def __call(self, m):
@@ -355,27 +362,34 @@ class Instruction:
         m.data_stack.insert(0, self.args['arg1']['val'])
 
     def __pops(self, m):
+        self.__check_dest_var()
+        if m.data_stack[0] is None:
+            sys.exit(56)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'], m.data_stack.pop(0))
 
     def __add(self, m):
+        self.__check_dest_var()
         if not isinstance(self.args['arg2']['val'], int) or not isinstance(self.args['arg3']['val'], int):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] + self.args['arg3']['val'])
 
     def __sub(self, m):
+        self.__check_dest_var()
         if not isinstance(self.args['arg2']['val'], int) or not isinstance(self.args['arg3']['val'], int):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] - self.args['arg3']['val'])
 
     def __mul(self, m):
+        self.__check_dest_var()
         if not isinstance(self.args['arg2']['val'], int) or not isinstance(self.args['arg3']['val'], int):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] * self.args['arg3']['val'])
 
     def __idiv(self, m):
+        self.__check_dest_var()
         if not isinstance(self.args['arg2']['val'], int) or not isinstance(self.args['arg3']['val'], int):
             sys.exit(53)
         if self.args['arg3']['val'] == 0:
@@ -387,60 +401,67 @@ class Instruction:
             sys.exit(57)
 
     def __lt(self, m):
+        self.__check_dest_var()
         if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])):
             sys.exit(53)
         else:
             if self.args['arg2']['val'] < self.args['arg3']['val']:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'true')
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
             else:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'false')
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
 
     def __gt(self, m):
+        self.__check_dest_var()
         if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])):
             sys.exit(53)
         else:
             if self.args['arg2']['val'] > self.args['arg3']['val']:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'true')
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
             else:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'false')
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
 
     def __eq(self, m):
+        self.__check_dest_var()
         if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])):
             sys.exit(53)
         else:
             if self.args['arg2']['val'] == self.args['arg3']['val']:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'true')
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
             else:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'false')
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
 
     def __and(self, m):
+        self.__check_dest_var()
         if type(self.args['arg2']['type']) != 'bool' or type(self.args['arg3']['val']) != 'bool':
             sys.exit(53)
         else:
-            if self.args['arg2']['val'] == 'true' and self.args['arg3']['val'] == 'true':
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'true')
+            if self.args['arg2']['val'] is True and self.args['arg3']['val'] is True:
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
             else:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'false')
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
 
     def __or(self, m):
+        self.__check_dest_var()
         if type(self.args['arg2']['type']) != 'bool' or type(self.args['arg3']['val']) != 'bool':
             sys.exit(53)
         else:
-            if self.args['arg2']['val'] == 'true' or self.args['arg3']['val'] == 'true':
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'true')
+            if self.args['arg2']['val'] is True or self.args['arg3']['val'] is True:
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
             else:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'false')
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
 
     def __not(self, m):
+        self.__check_dest_var()
         if self.args['arg2']['type'] != 'bool':
             sys.exit(53)
         else:
-            if self.args['arg2']['val'] == 'true':
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'false')
+            if self.args['arg2']['val'] is True:
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
             else:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'true')
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
 
     def __int2char(self, m):
+        self.__check_dest_var()
         try:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], chr(self.args['arg2']['val']))
         except ValueError:
@@ -449,6 +470,7 @@ class Instruction:
             sys.exit(53)
 
     def __stri2int(self, m):
+        self.__check_dest_var()
         try:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                                   ord(self.args['arg2']['val'][self.args['arg3']['val']]))
@@ -458,6 +480,7 @@ class Instruction:
             sys.exit(53)
 
     def __read(self, m):
+        self.__check_dest_var()
         pass
         if m.input_in == 'stdin':
             try:
@@ -466,13 +489,13 @@ class Instruction:
                 elif self.args['arg2']['val'] == 'bool':
                     text = input()
                     if text == 'true':
-                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'true')
+                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
                     else:
-                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'false')
+                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
                 elif self.args['arg2']['val'] == 'string':
                     self.args['arg1']['frame'].change_var(self.args['arg1']['var'], input())
                 else:
-                    sys.exit(53)
+                    sys.exit(57)
             except EOFError:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], None)
         else:
@@ -484,24 +507,29 @@ class Instruction:
                     text = m.input_in[0]
                     m.input_in.pop(0)
                     if text == 'true':
-                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'true')
+                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
                     else:
-                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'false')
+                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
                 elif self.args['arg2']['val'] == 'string':
                     self.args['arg1']['frame'].change_var(self.args['arg1']['var'], m.input_in[0])
                     m.input_in.pop(0)
                 else:
-                    sys.exit(53)
+                    sys.exit(57)
             except EOFError:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], None)
 
     def __write(self, m):
         if self.args['arg1']['val'] is None:
             print("", end="")
+        elif self.args['arg1']['val'] is True:
+            print("true", end="")
+        elif self.args['arg1']['val'] is False:
+            print("false", end="")
         else:
             print(self.args['arg1']['val'], end="")
 
     def __concat(self, m):
+        self.__check_dest_var()
         if type(self.args['arg2']['val']) != str or type(self.args['arg3']['val']) != str:
             sys.exit(53)
         else:
@@ -509,12 +537,16 @@ class Instruction:
                                                   self.args['arg2']['val'] + self.args['arg3']['val'])
 
     def __strlen(self, m):
+        self.__check_dest_var()
         if type(self.args['arg2']['val']) != str or self.args['arg2']['type'] != 'string':
             sys.exit(53)
         else:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], len(self.args['arg2']['val']))
 
     def __getchar(self, m):
+        self.__check_dest_var()
+        if self.args['arg3']['val'] is True or self.args['arg3']['val'] is False:
+            sys.exit(53)
         try:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                                   self.args['arg2']['val'][self.args['arg3']['val']])
@@ -524,9 +556,12 @@ class Instruction:
             sys.exit(53)
 
     def __setchar(self, m):
-        if self.args['arg2']['val'] >= len(self.args['arg3']['val']) or self.args['arg2']['val'] < 0:
-            sys.exit(58)
+        self.__check_dest_var()
+        if self.args['arg2']['val'] is True or self.args['arg2']['val'] is False:
+            sys.exit(53)
         try:
+            if self.args['arg2']['val'] >= len(self.args['arg3']['val']) or self.args['arg2']['val'] < 0:
+                sys.exit(58)
             first = self.args['arg1']['val'][:self.args['arg2']['val']]
             second = self.args['arg1']['val'][self.args['arg2']['val'] + 1:]
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
@@ -535,6 +570,7 @@ class Instruction:
             sys.exit(53)
 
     def __type(self, m):
+        self.__check_dest_var()
         if self.args['arg2']['type'] == 'int':
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'int')
         elif self.args['arg2']['type'] == 'bool':
@@ -549,7 +585,7 @@ class Instruction:
             if type(self.args['arg2']['val']) == int:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'int')
             elif type(self.args['arg2']['val']) == str:
-                if self.args['arg2']['val'] == 'true' or self.args['arg2']['val'] == 'false':
+                if self.args['arg2']['val'] is True or self.args['arg2']['val'] is False:
                     self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'bool')
                 else:
                     self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'string')
@@ -598,6 +634,14 @@ class Instruction:
         sys.stderr.write(f"Obsah docasneho ramce: {m.temporary_frame.frame}\n")
         sys.stderr.write(f"Obsah docasneho ramce: {m.global_frame.frame}\n")
         sys.stderr.write(f"Pocet vykonanych instrukci: {m.instruction_count}\n")
+
+    def __check_dest_var(self):
+        if self.args['arg1']['type'] != 'var':
+            sys.exit(53)
+        if self.args['arg1']['frame'] is None:
+            sys.exit(55)
+        if self.args['arg1']['var'] not in self.args['arg1']['frame'].frame:
+            sys.exit(54)
 
 
 if __name__ == "__main__":
