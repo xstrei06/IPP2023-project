@@ -3,7 +3,7 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 import re
-
+import numbers
 
 instruction_args = {
     'MOVE': [2, "arg1", "arg2"],
@@ -40,7 +40,25 @@ instruction_args = {
     'JUMPIFNEQ': [3, "arg1", "arg2", "arg3"],
     'EXIT': [1, "arg1"],
     'DPRINT': [1, "arg1"],
-    'BREAK': [0]
+    'BREAK': [0],
+    'CLEARS': [0],
+    'ADDS': [0],
+    'SUBS': [0],
+    'MULS': [0],
+    'IDIVS': [0],
+    'LTS': [0],
+    'GTS': [0],
+    'EQS': [0],
+    'ANDS': [0],
+    'ORS': [0],
+    'NOTS': [0],
+    'INT2CHARS': [0],
+    'STRI2INTS': [0],
+    'JUMPIFEQS': [1, "arg1"],
+    'JUMPIFNEQS': [1, "arg1"],
+    'INT2FLOAT': [2, "arg1", "arg2"],
+    'FLOAT2INT': [2, "arg1", "arg2"],
+    'DIV': [3, "arg1", "arg2", "arg3"],
 }
 
 
@@ -69,16 +87,18 @@ class ArgumentParser:
         self.source = self.args.source
         self.input = self.args.input
         if self.args.help and len(sys.argv) > 2:
-            self.parser.error("Invalid argument combination.")
+            print("Error: Invalid argument combination.", file=sys.stderr)
+            sys.exit(10)
         elif self.args.help:
             self.parser.print_help()
             sys.exit(0)
         elif self.input is None and self.source is None:
-            self.parser.error("Either source or input has to be specified.")
+            print("Either source or input has to be specified.", file=sys.stderr)
+            sys.exit(10)
 
     def __valid_file(self, filename):
         if not os.path.isfile(filename):
-            sys.stderr.write(f"{filename} is not a valid file")
+            print(f"{filename} is not a valid file.", file=sys.stderr)
             sys.exit(11)
         return filename
 
@@ -181,6 +201,11 @@ class XMLParser:
             sys.exit(52)
 
 
+class Nil:
+    def __init__(self):
+        self.val = 'Nil'
+
+
 class Frame:
     def __init__(self):
         self.frame = {}
@@ -211,7 +236,7 @@ class Main:
         self.temporary_frame = None
         self.frame_stack = [None]
         self.call_stack = [None]
-        self.data_stack = [None]
+        self.data_stack = []
         self.ins_pointer = -1
 
     def __get_instruction_objects(self):
@@ -221,7 +246,6 @@ class Main:
         return instructions
 
 
-# noinspection PyArgumentList
 class Instruction:
     def __init__(self, instruction):
         self.opcode = instruction.attrib["opcode"]
@@ -263,7 +287,25 @@ class Instruction:
             'JUMPIFNEQ': self.__jumpifneq,
             'EXIT': self.__exit,
             'DPRINT': self.__dprint,
-            'BREAK': self.__break
+            'BREAK': self.__break,
+            'CLEARS': self.__clears,
+            'ADDS': self.__adds,
+            'SUBS': self.__subs,
+            'MULS': self.__muls,
+            'IDIVS': self.__idivs,
+            'LTS': self.__lts,
+            'GTS': self.__gts,
+            'EQS': self.__eqs,
+            'ANDS': self.__ands,
+            'ORS': self.__ors,
+            'NOTS': self.__nots,
+            'INT2CHARS': self.__int2chars,
+            'STRI2INTS': self.__stri2ints,
+            'JUMPIFEQS': self.__jumpifeqs,
+            'JUMPIFNEQS': self.__jumpifneqs,
+            'INT2FLOAT': self.__int2float,
+            'FLOAT2INT': self.__float2int,
+            'DIV': self.__div,
         }
         if self.opcode not in self.invoke_method:
             sys.exit(32)
@@ -286,6 +328,16 @@ class Instruction:
                     sys.exit(32)
                 self.args[i.tag] = {'val': int(i.text),
                                     'type': 'int'}
+            elif i.attrib["type"] == "float":
+                try:
+                    value = float(i.text)
+                except ValueError:
+                    try:
+                        value = float.fromhex(i.text)
+                    except ValueError:
+                        sys.exit(32)
+                self.args[i.tag] = {'val': value,
+                                    'type': 'float'}
             elif i.attrib["type"] == "bool":
                 if i.text == "true":
                     self.args[i.tag] = {'val': True,
@@ -305,7 +357,7 @@ class Instruction:
                 self.args[i.tag] = {'val': i.text,
                                     'type': 'type'}
             elif i.attrib["type"] == "nil":
-                self.args[i.tag] = {'val': None,
+                self.args[i.tag] = {'val': Nil(),
                                     'type': 'nil'}
 
     def __get_frame(self, var, glob_frame, temp_frame, local_frame):
@@ -318,12 +370,14 @@ class Instruction:
         else:
             sys.exit(55)
 
+    # noinspection PyArgumentList
     def execute(self, m):
         self.__set_args(self.instruction, main.global_frame, main.temporary_frame, main.frame_stack[0])
         self.invoke_method[self.opcode](m)
 
     def __move(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'], self.args['arg2']['val'])
 
     def __createframe(self, m):
@@ -341,8 +395,7 @@ class Instruction:
         m.temporary_frame = m.frame_stack.pop(0)
 
     def __defvar(self, m):
-        if self.args['arg1']['type'] != 'var':
-            sys.exit(53)
+        self.__check_dest_var()
         if self.args['arg1']['frame'] is None:
             sys.exit(55)
         self.args['arg1']['frame'].add_var(self.args['arg1']['var'])
@@ -359,38 +412,46 @@ class Instruction:
         m.ins_pointer = m.call_stack.pop(0)
 
     def __pushs(self, m):
-        m.data_stack.insert(0, self.args['arg1']['val'])
+        m.data_stack.insert(0, self.args['arg1'])
 
     def __pops(self, m):
         self.__check_dest_var()
-        if m.data_stack[0] is None:
+        self.__check_for_vars()
+        if not m.data_stack:
             sys.exit(56)
-        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], m.data_stack.pop(0))
+        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], m.data_stack.pop(0)['val'])
 
     def __add(self, m):
         self.__check_dest_var()
-        if not isinstance(self.args['arg2']['val'], int) or not isinstance(self.args['arg3']['val'], int):
+        self.__check_for_vars()
+        if (not isinstance(self.args['arg2']['val'], numbers.Number)) or \
+                (not isinstance(self.args['arg3']['val'], numbers.Number)):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] + self.args['arg3']['val'])
 
     def __sub(self, m):
         self.__check_dest_var()
-        if not isinstance(self.args['arg2']['val'], int) or not isinstance(self.args['arg3']['val'], int):
+        self.__check_for_vars()
+        if (not isinstance(self.args['arg2']['val'], numbers.Number)) or \
+                (not isinstance(self.args['arg3']['val'], numbers.Number)):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] - self.args['arg3']['val'])
 
     def __mul(self, m):
         self.__check_dest_var()
-        if not isinstance(self.args['arg2']['val'], int) or not isinstance(self.args['arg3']['val'], int):
+        self.__check_for_vars()
+        if (not isinstance(self.args['arg2']['val'], numbers.Number)) or \
+                (not isinstance(self.args['arg3']['val'], numbers.Number)):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] * self.args['arg3']['val'])
 
     def __idiv(self, m):
         self.__check_dest_var()
-        if not isinstance(self.args['arg2']['val'], int) or not isinstance(self.args['arg3']['val'], int):
+        self.__check_for_vars()
+        if type(self.args['arg2']['val']) != int or type(self.args['arg3']['val']) != int:
             sys.exit(53)
         if self.args['arg3']['val'] == 0:
             sys.exit(57)
@@ -402,7 +463,11 @@ class Instruction:
 
     def __lt(self, m):
         self.__check_dest_var()
-        if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])):
+        self.__check_for_vars()
+        if not (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))):
+            sys.exit(53)
+        if type(self.args['arg2']['val']) is Nil or type(self.args['arg3']['val']) is Nil:
             sys.exit(53)
         else:
             if self.args['arg2']['val'] < self.args['arg3']['val']:
@@ -412,7 +477,11 @@ class Instruction:
 
     def __gt(self, m):
         self.__check_dest_var()
-        if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])):
+        self.__check_for_vars()
+        if not (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))):
+            sys.exit(53)
+        if type(self.args['arg2']['val']) is Nil or type(self.args['arg3']['val']) is Nil:
             sys.exit(53)
         else:
             if self.args['arg2']['val'] > self.args['arg3']['val']:
@@ -422,17 +491,23 @@ class Instruction:
 
     def __eq(self, m):
         self.__check_dest_var()
-        if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])):
+        self.__check_for_vars()
+        if not (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))) \
+                and (type(self.args['arg2']['val']) is not Nil and type(self.args['arg3']['val']) is not Nil):
             sys.exit(53)
         else:
             if self.args['arg2']['val'] == self.args['arg3']['val']:
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
+            elif type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
             else:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
 
     def __and(self, m):
         self.__check_dest_var()
-        if type(self.args['arg2']['type']) != 'bool' or type(self.args['arg3']['val']) != 'bool':
+        self.__check_for_vars()
+        if self.args['arg2']['type'] != 'bool' or self.args['arg3']['val'] != 'bool':
             sys.exit(53)
         else:
             if self.args['arg2']['val'] is True and self.args['arg3']['val'] is True:
@@ -442,7 +517,8 @@ class Instruction:
 
     def __or(self, m):
         self.__check_dest_var()
-        if type(self.args['arg2']['type']) != 'bool' or type(self.args['arg3']['val']) != 'bool':
+        self.__check_for_vars()
+        if self.args['arg2']['type'] != 'bool' or self.args['arg3']['val'] != 'bool':
             sys.exit(53)
         else:
             if self.args['arg2']['val'] is True or self.args['arg3']['val'] is True:
@@ -452,6 +528,7 @@ class Instruction:
 
     def __not(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         if self.args['arg2']['type'] != 'bool':
             sys.exit(53)
         else:
@@ -462,6 +539,7 @@ class Instruction:
 
     def __int2char(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         try:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], chr(self.args['arg2']['val']))
         except ValueError:
@@ -471,6 +549,7 @@ class Instruction:
 
     def __stri2int(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         try:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                                   ord(self.args['arg2']['val'][self.args['arg3']['val']]))
@@ -481,6 +560,7 @@ class Instruction:
 
     def __read(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         pass
         if m.input_in == 'stdin':
             try:
@@ -494,10 +574,15 @@ class Instruction:
                         self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
                 elif self.args['arg2']['val'] == 'string':
                     self.args['arg1']['frame'].change_var(self.args['arg1']['var'], input())
+                elif self.args['arg2']['val'] == 'float':
+                    value = input()
+                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
+                                                          float.fromhex(value) if value.startswith('0x')
+                                                          else float(value))
                 else:
                     sys.exit(57)
             except EOFError:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], None)
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
         else:
             try:
                 if self.args['arg2']['val'] == 'int':
@@ -513,23 +598,41 @@ class Instruction:
                 elif self.args['arg2']['val'] == 'string':
                     self.args['arg1']['frame'].change_var(self.args['arg1']['var'], m.input_in[0])
                     m.input_in.pop(0)
+                elif self.args['arg2']['val'] == 'float':
+                    value = m.input_in[0]
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        try:
+                            value = float.fromhex(value)
+                        except ValueError:
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], None)
+                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], value)
                 else:
                     sys.exit(57)
             except EOFError:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], None)
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+            except IndexError:
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
 
     def __write(self, m):
-        if self.args['arg1']['val'] is None:
+        self.__check_for_vars()
+        if type(self.args['arg1']['val']) is Nil:
             print("", end="")
+        elif self.args['arg1']['val'] is None:
+            sys.exit(56)
         elif self.args['arg1']['val'] is True:
             print("true", end="")
         elif self.args['arg1']['val'] is False:
             print("false", end="")
+        elif type(self.args['arg1']['val']) == float:
+            print(float.hex(self.args['arg1']['val']), end="")
         else:
             print(self.args['arg1']['val'], end="")
 
     def __concat(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         if type(self.args['arg2']['val']) != str or type(self.args['arg3']['val']) != str:
             sys.exit(53)
         else:
@@ -538,6 +641,7 @@ class Instruction:
 
     def __strlen(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         if type(self.args['arg2']['val']) != str or self.args['arg2']['type'] != 'string':
             sys.exit(53)
         else:
@@ -545,6 +649,7 @@ class Instruction:
 
     def __getchar(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         if self.args['arg3']['val'] is True or self.args['arg3']['val'] is False:
             sys.exit(53)
         try:
@@ -557,6 +662,7 @@ class Instruction:
 
     def __setchar(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         if self.args['arg2']['val'] is True or self.args['arg2']['val'] is False:
             sys.exit(53)
         try:
@@ -571,6 +677,7 @@ class Instruction:
 
     def __type(self, m):
         self.__check_dest_var()
+        self.__check_for_vars()
         if self.args['arg2']['type'] == 'int':
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'int')
         elif self.args['arg2']['type'] == 'bool':
@@ -578,7 +685,7 @@ class Instruction:
         elif self.args['arg2']['type'] == 'string':
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'string')
         elif self.args['arg2']['type'] == 'nil':
-            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'nil')
+            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
         elif self.args['arg2']['type'] == 'var' and self.args['arg2']['val'] is None:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], '')
         elif self.args['arg2']['type'] == 'var':
@@ -601,17 +708,25 @@ class Instruction:
         m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
 
     def __jumpifeq(self, m):
+        self.__check_for_vars()
         if self.args['arg1']['val'] not in m.xml_parser.labels:
             sys.exit(52)
-        if isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])):
+        if isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))\
+                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val'])):
             if self.args['arg2']['val'] == self.args['arg3']['val']:
+                m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
+            elif type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
                 m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
 
     def __jumpifneq(self, m):
+        self.__check_for_vars()
         if self.args['arg1']['val'] not in m.xml_parser.labels:
             sys.exit(52)
-        if isinstance(self.args['arg1']['val'], type(self.args['arg2']['val'])):
-            if self.args['arg1']['val'] != self.args['arg2']['val']:
+        if isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])) \
+                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val'])):
+            if type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
+                pass
+            elif self.args['arg1']['val'] != self.args['arg2']['val']:
                 m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
 
     def __exit(self, m):
@@ -623,25 +738,220 @@ class Instruction:
             sys.exit(self.args['arg1']['val'])
 
     def __dprint(self, m):
-        sys.stderr.write(str(self.args['arg1']['val']) + '\n')
+        print(str(self.args['arg1']['val']), file=sys.stderr)
 
     def __break(self, m):
-        sys.stderr.write(f"Pozice vykonavane instrukce: {m.ins_pointer}\n")
-        sys.stderr.write(f"Zasobnik volani: {m.call_stack}\n")
-        sys.stderr.write(f"Zasobnik ramcu: {m.frame_stack}\n")
-        sys.stderr.write(f"Zasobnik dat: {m.data_stack}\n")
-        sys.stderr.write(f"Obsah lokalniho ramce: {m.frame_stack[0].frame}\n")
-        sys.stderr.write(f"Obsah docasneho ramce: {m.temporary_frame.frame}\n")
-        sys.stderr.write(f"Obsah docasneho ramce: {m.global_frame.frame}\n")
-        sys.stderr.write(f"Pocet vykonanych instrukci: {m.instruction_count}\n")
+        print(f"Pozice vykonavane instrukce: {m.ins_pointer}", file=sys.stderr)
+        print(f"Zasobnik volani: {m.call_stack}", file=sys.stderr)
+        print(f"Zasobnik ramcu: {m.frame_stack}", file=sys.stderr)
+        print(f"Zasobnik dat: {m.data_stack}", file=sys.stderr)
+        print(f"Obsah lokalniho ramce: {m.frame_stack[0].frame}", file=sys.stderr)
+        print(f"Obsah docasneho ramce: {m.temporary_frame.frame}", file=sys.stderr)
+        print(f"Obsah globalniho ramce: {m.global_frame.frame}", file=sys.stderr)
+        print(f"Pocet vykonanych instrukci: {m.instruction_count}", file=sys.stderr)
+
+    def __clears(self, m):
+        m.data_stack.clear()
+
+    def __adds(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if type(self.args['arg2']['val']) != int or type(self.args['arg3']['val']) != int:
+            sys.exit(53)
+        m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] + self.args['arg3']['val']})
+
+    def __subs(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if type(self.args['arg2']['val']) != int or type(self.args['arg3']['val']) != int:
+            sys.exit(53)
+        m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
+
+    def __muls(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if type(self.args['arg2']['val']) != int or type(self.args['arg3']['val']) != int:
+            sys.exit(53)
+        m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] * self.args['arg3']['val']})
+
+    def __idivs(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if type(self.args['arg2']['val']) != int or type(self.args['arg3']['val']) != int:
+            sys.exit(53)
+        if self.args['arg3']['val'] == 0:
+            sys.exit(57)
+        m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] // self.args['arg3']['val']})
+
+    def __lts(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if not (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))):
+            sys.exit(53)
+        if type(self.args['arg2']['val']) is Nil or type(self.args['arg3']['val']) is Nil:
+            sys.exit(53)
+        if self.args['arg2']['val'] < self.args['arg3']['val']:
+            m.data_stack.insert(0, {'type': 'bool', 'val': True})
+        else:
+            m.data_stack.insert(0, {'type': 'bool', 'val': False})
+
+    def __gts(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if not (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))):
+            sys.exit(53)
+        if type(self.args['arg2']['val']) is Nil or type(self.args['arg3']['val']) is Nil:
+            sys.exit(53)
+        if self.args['arg2']['val'] > self.args['arg3']['val']:
+            m.data_stack.insert(0, {'type': 'bool', 'val': True})
+        else:
+            m.data_stack.insert(0, {'type': 'bool', 'val': False})
+
+    def __eqs(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if not (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))) \
+                and (type(self.args['arg2']['val']) is not Nil and type(self.args['arg3']['val']) is not Nil):
+            sys.exit(53)
+        if self.args['arg2']['val'] == self.args['arg3']['val']:
+            m.data_stack.insert(0, {'type': 'bool', 'val': True})
+        elif type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
+            m.data_stack.insert(0, {'type': 'bool', 'val': True})
+        else:
+            m.data_stack.insert(0, {'type': 'bool', 'val': False})
+
+    def __ands(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if not isinstance(self.args['arg2']['val'], bool) or not isinstance(self.args['arg3']['val'], bool):
+            sys.exit(53)
+        if self.args['arg2']['val'] and self.args['arg3']['val']:
+            m.data_stack.insert(0, {'type': 'bool', 'val': True})
+        else:
+            m.data_stack.insert(0, {'type': 'bool', 'val': False})
+
+    def __ors(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if not isinstance(self.args['arg2']['val'], bool) or not isinstance(self.args['arg3']['val'], bool):
+            sys.exit(53)
+        if self.args['arg2']['val'] or self.args['arg3']['val']:
+            m.data_stack.insert(0, {'type': 'bool', 'val': True})
+        else:
+            m.data_stack.insert(0, {'type': 'bool', 'val': False})
+
+    def __nots(self, m):
+        self.__check_for_vars()
+        if len(m.data_stack) < 1:
+            sys.exit(56)
+        self.args['arg1'] = m.data_stack.pop()
+        if not isinstance(self.args['arg1']['val'], bool):
+            sys.exit(53)
+        if self.args['arg1']['val']:
+            m.data_stack.insert(0, {'type': 'bool', 'val': False})
+        else:
+            m.data_stack.insert(0, {'type': 'bool', 'val': True})
+
+    def __int2chars(self, m):
+        self.__check_for_vars()
+        if len(m.data_stack) < 1:
+            sys.exit(56)
+        self.args['arg1'] = m.data_stack.pop()
+        if not isinstance(self.args['arg1']['val'], int):
+            sys.exit(53)
+        if self.args['arg1']['val'] < 0 or self.args['arg1']['val'] > 1114111:
+            sys.exit(58)
+        m.data_stack.insert(0, {'type': 'string', 'val': chr(self.args['arg1']['val'])})
+
+    def __stri2ints(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if not isinstance(self.args['arg2']['val'], str) or not isinstance(self.args['arg3']['val'], int):
+            sys.exit(53)
+        if self.args['arg3']['val'] < 0 or self.args['arg3']['val'] >= len(self.args['arg2']['val']):
+            sys.exit(58)
+        m.data_stack.insert(0, {'type': 'int', 'val': ord(self.args['arg2']['val'][self.args['arg3']['val']])})
+
+    def __jumpifeqs(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if self.args['arg1']['val'] not in m.xml_parser.labels:
+            sys.exit(52)
+        if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])) \
+                and (type(self.args['arg2']['val']) is not Nil and type(self.args['arg3']['val']) is not Nil):
+            sys.exit(53)
+        if self.args['arg2']['val'] == self.args['arg3']['val']:
+            m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
+        elif type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
+            m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
+
+    def __jumpifneqs(self, m):
+        self.__check_stack_two_operands(m)
+        self.__check_for_vars()
+        if self.args['arg1']['val'] not in m.xml_parser.labels:
+            sys.exit(52)
+        if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])) \
+                and (type(self.args['arg2']['val']) is not Nil and type(self.args['arg3']['val']) is not Nil):
+            sys.exit(53)
+        if type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
+            pass
+        elif self.args['arg2']['val'] != self.args['arg3']['val']:
+            m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
+
+    def __int2float(self, m):
+        self.__check_dest_var()
+        self.__check_for_vars()
+        if self.args['arg2']['val'] is None:
+            sys.exit(56)
+        if type(self.args['arg2']['val']) != int:
+            sys.exit(53)
+        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], float(self.args['arg2']['val']))
+
+    def __float2int(self, m):
+        self.__check_dest_var()
+        self.__check_for_vars()
+        if self.args['arg2']['val'] is None:
+            sys.exit(56)
+        if type(self.args['arg2']['val']) != float:
+            sys.exit(53)
+        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], int(self.args['arg2']['val']))
+
+    def __div(self, m):
+        self.__check_dest_var()
+        self.__check_for_vars()
+        if self.args['arg2']['type'] != 'var':
+            sys.exit(53)
+        if self.args['arg2']['frame'] is None:
+            sys.exit(55)
+        if self.args['arg2']['var'] not in self.args['arg1']['frame'].frame:
+            sys.exit(54)
+        if type(self.args['arg2']['val']) != float or type(self.args['arg3']['val']) != float:
+            sys.exit(53)
+        if self.args['arg3']['val'] == 0:
+            sys.exit(57)
+        self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
+                                              self.args['arg2']['val'] / self.args['arg3']['val'])
 
     def __check_dest_var(self):
         if self.args['arg1']['type'] != 'var':
             sys.exit(53)
-        if self.args['arg1']['frame'] is None:
-            sys.exit(55)
-        if self.args['arg1']['var'] not in self.args['arg1']['frame'].frame:
-            sys.exit(54)
+
+    def __check_for_vars(self):
+        for key in self.args:
+            if self.args[key]['type'] == 'var':
+                if self.args[key]['frame'] is None:
+                    sys.exit(55)
+                if self.args[key]['var'] not in self.args[key]['frame'].frame:
+                    sys.exit(54)
+
+    def __check_stack_two_operands(self, m):
+        if len(m.data_stack) < 2:
+            sys.exit(56)
+        self.args['arg3'] = m.data_stack.pop(0)
+        self.args['arg2'] = m.data_stack.pop(0)
 
 
 if __name__ == "__main__":
