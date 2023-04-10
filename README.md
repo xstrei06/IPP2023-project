@@ -1,3 +1,3 @@
-# IPP2023-project
+# IPP-2023-projects
 
-FIT VUT IPP course project
+FIT VUT IPP course projects
