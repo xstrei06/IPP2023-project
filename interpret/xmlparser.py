@@ -120,6 +120,8 @@ class XMLParser:
                 if arg.tag not in self.instruction_args[instruction.attrib["opcode"]]:
                     sys.exit(32)
                 if arg.attrib["type"] == "string":  # parses escape sequences
+                    if arg.text is None:
+                        arg.text = ""
                     arg.text = re.sub(r'\\(\d{3})', lambda x: chr(
                         int(x.group(1))), arg.text)
 

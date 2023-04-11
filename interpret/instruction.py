@@ -200,24 +200,21 @@ class Instruction:
 
     def __add(self, m):
         self.__check_dest_var()
-        if (not isinstance(self.args['arg2']['val'], numbers.Number)) or \
-                (not isinstance(self.args['arg3']['val'], numbers.Number)):
+        if not (type(self.args['arg2']['val']) in [int, float] and type(self.args['arg3']['val']) in [int, float]):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] + self.args['arg3']['val'])
 
     def __sub(self, m):
         self.__check_dest_var()
-        if (not isinstance(self.args['arg2']['val'], numbers.Number)) or \
-                (not isinstance(self.args['arg3']['val'], numbers.Number)):
+        if not (type(self.args['arg2']['val']) in [int, float] and type(self.args['arg3']['val']) in [int, float]):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] - self.args['arg3']['val'])
 
     def __mul(self, m):
         self.__check_dest_var()
-        if (not isinstance(self.args['arg2']['val'], numbers.Number)) or \
-                (not isinstance(self.args['arg3']['val'], numbers.Number)):
+        if not (type(self.args['arg2']['val']) in [int, float] and type(self.args['arg3']['val']) in [int, float]):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] * self.args['arg3']['val'])
@@ -306,78 +303,87 @@ class Instruction:
 
     def __int2char(self, m):
         self.__check_dest_var()
-        try:
-            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], chr(self.args['arg2']['val']))
-        except ValueError:
-            sys.exit(58)
-        except TypeError:
+        if type(self.args['arg2']['val']) != int:
             sys.exit(53)
+        if self.args['arg2']['val'] < 0 or self.args['arg2']['val'] > 1114111:
+            sys.exit(58)
+        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], chr(self.args['arg2']['val']))
 
     def __stri2int(self, m):
         self.__check_dest_var()
-        try:
-            self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
-                                                  ord(self.args['arg2']['val'][self.args['arg3']['val']]))
-        except ValueError:
-            sys.exit(58)
-        except TypeError:
+        if type(self.args['arg2']['val']) != str or type(self.args['arg3']['val']) != int:
             sys.exit(53)
+        if self.args['arg3']['val'] < 0 or self.args['arg3']['val'] >= len(self.args['arg2']['val']):
+            sys.exit(58)
+        self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
+                                              ord(self.args['arg2']['val'][self.args['arg3']['val']]))
 
     def __read(self, m):
         self.__check_dest_var()
-        pass
         if m.input_in == 'stdin':
             try:
-                if self.args['arg2']['val'] == 'int':
-                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], int(input()))
-                elif self.args['arg2']['val'] == 'bool':
-                    text = input()
-                    if text == 'true':
-                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
+                read_in = input()
+                if read_in == '':
+                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+                    if self.args['arg2']['val'] == 'int':
+                        try:
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], int(read_in, 0))
+                        except ValueError:
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+                    elif self.args['arg2']['val'] == 'bool':
+                        text = input()
+                        if text.lower() == 'true':
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
+                        else:
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
+                    elif self.args['arg2']['val'] == 'string':
+                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], read_in)
+                    elif self.args['arg2']['val'] == 'float':
+                        try:
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], float(read_in))
+                        except ValueError:
+                            try:
+                                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], float.fromhex(read_in))
+                            except ValueError:
+                                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
                     else:
-                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
-                elif self.args['arg2']['val'] == 'string':
-                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], input())
-                elif self.args['arg2']['val'] == 'float':
-                    value = input()
-                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
-                                                          float.fromhex(value) if value.startswith('0x')
-                                                          else float(value))
-                else:
-                    sys.exit(57)
+                        sys.exit(57)
             except EOFError:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
         else:
-            try:
-                if self.args['arg2']['val'] == 'int':
-                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], int(m.input_in[0]))
-                    m.input_in.pop(0)
-                elif self.args['arg2']['val'] == 'bool':
-                    text = m.input_in[0]
-                    m.input_in.pop(0)
-                    if text == 'true':
-                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
-                    else:
-                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
-                elif self.args['arg2']['val'] == 'string':
-                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], m.input_in[0])
-                    m.input_in.pop(0)
-                elif self.args['arg2']['val'] == 'float':
-                    value = m.input_in[0]
-                    try:
-                        value = float(value)
-                    except ValueError:
+            if len(m.input_in) == 0:
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+            else:
+                try:
+                    if self.args['arg2']['val'] == 'int':
                         try:
-                            value = float.fromhex(value)
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], int(m.input_in[0], 0))
                         except ValueError:
-                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], None)
-                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], value)
-                else:
-                    sys.exit(57)
-            except EOFError:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
-            except IndexError:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+                    elif self.args['arg2']['val'] == 'bool':
+                        text = m.input_in[0]
+                        if text.lower() == 'true':
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], True)
+                        else:
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], False)
+                    elif self.args['arg2']['val'] == 'string':
+                        self.args['arg1']['frame'].change_var(self.args['arg1']['var'], m.input_in[0])
+                    elif self.args['arg2']['val'] == 'float':
+                        value = m.input_in[0]
+                        try:
+                            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], float(value))
+                        except ValueError:
+                            try:
+                                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], float.fromhex(value))
+                            except ValueError:
+                                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+                    else:
+                        sys.exit(57)
+                except EOFError:
+                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+                except IndexError:
+                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+                m.input_in.pop(0)
 
     def __write(self, m):
         if type(self.args['arg1']['val']) is Nil:
@@ -410,22 +416,26 @@ class Instruction:
 
     def __getchar(self, m):
         self.__check_dest_var()
-        if self.args['arg3']['val'] is True or self.args['arg3']['val'] is False:
+        if type(self.args['arg2']['val']) != str or type(self.args['arg3']['val']) != int:
             sys.exit(53)
-        try:
-            self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
-                                                  self.args['arg2']['val'][self.args['arg3']['val']])
-        except IndexError:
+        if self.args['arg3']['val'] < 0 or self.args['arg3']['val'] >= len(self.args['arg2']['val']):
             sys.exit(58)
-        except TypeError:
-            sys.exit(53)
+        self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
+                                              self.args['arg2']['val'][self.args['arg3']['val']])
 
     def __setchar(self, m):
         self.__check_dest_var()
-        if self.args['arg2']['val'] is True or self.args['arg2']['val'] is False:
+        if self.args['arg1']['val'] is None:
+            sys.exit(56)
+        if type(self.args['arg1']['val']) != str:
+            sys.exit(53)
+        if type(self.args['arg2']['val']) != int:
+            sys.exit(53)
+        if type(self.args['arg3']['val']) != str:
             sys.exit(53)
         try:
-            if self.args['arg2']['val'] >= len(self.args['arg3']['val']) or self.args['arg2']['val'] < 0:
+            if self.args['arg2']['val'] >= len(self.args['arg1']['val']) or self.args['arg2']['val'] < 0\
+                    or len(self.args['arg3']['val']) == 0:
                 sys.exit(58)
             first = self.args['arg1']['val'][:self.args['arg2']['val']]
             second = self.args['arg1']['val'][self.args['arg2']['val'] + 1:]
@@ -436,28 +446,18 @@ class Instruction:
 
     def __type(self, m):
         self.__check_dest_var()
-        if self.args['arg2']['type'] == 'int':
+        if type(self.args['arg2']['val']) == int:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'int')
-        elif self.args['arg2']['type'] == 'bool':
-            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'bool')
-        elif self.args['arg2']['type'] == 'string':
+        elif type(self.args['arg2']['val']) == float:
+            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'float')
+        elif type(self.args['arg2']['val']) == str:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'string')
-        elif self.args['arg2']['type'] == 'nil':
-            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+        elif type(self.args['arg2']['val']) == bool:
+            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'bool')
+        elif type(self.args['arg2']['val']) == Nil:
+            self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'nil')
         elif self.args['arg2']['type'] == 'var' and self.args['arg2']['val'] is None:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], '')
-        elif self.args['arg2']['type'] == 'var':
-            if self.args['arg2']['val'] is None:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], '')
-            elif type(self.args['arg2']['val']) == int:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'int')
-            elif type(self.args['arg2']['val']) == float:
-                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'float')
-            elif type(self.args['arg2']['val']) == str:
-                if self.args['arg2']['val'] is True or self.args['arg2']['val'] is False:
-                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'bool')
-                else:
-                    self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'string')
         else:
             sys.exit(53)
 
@@ -472,22 +472,28 @@ class Instruction:
     def __jumpifeq(self, m):
         if self.args['arg1']['val'] not in m.xml_parser.labels:
             sys.exit(52)
-        if isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])) \
-                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val'])):
+        if (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+            and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))) or \
+                type(self.args['arg2']['val']) is Nil or type(self.args['arg3']['val']) is Nil:
             if self.args['arg2']['val'] == self.args['arg3']['val']:
                 m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
             elif type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
                 m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
+        else:
+            sys.exit(53)
 
     def __jumpifneq(self, m):
         if self.args['arg1']['val'] not in m.xml_parser.labels:
             sys.exit(52)
-        if isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])) \
-                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val'])):
+        if (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+                and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))) or \
+                type(self.args['arg2']['val']) is Nil or type(self.args['arg3']['val']) is Nil:
             if type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
                 pass
-            elif self.args['arg1']['val'] != self.args['arg2']['val']:
+            elif self.args['arg2']['val'] != self.args['arg3']['val']:
                 m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
+        else:
+            sys.exit(53)
 
     def __exit(self, m):
         if type(self.args['arg1']['val']) != int:
@@ -495,7 +501,8 @@ class Instruction:
         elif self.args['arg1']['val'] < 0 or self.args['arg1']['val'] > 49:
             sys.exit(57)
         else:
-            sys.exit(self.args['arg1']['val'])
+            m.ins_pointer = len(m.xml_parser.instructions) + 1
+            m.exit_code = self.args['arg1']['val']
 
     def __dprint(self, m):
         print(str(self.args['arg1']['val']), file=sys.stderr)
@@ -609,7 +616,7 @@ class Instruction:
         if len(m.data_stack) < 1:
             sys.exit(56)
         self.args['arg1'] = m.data_stack.pop()
-        if not isinstance(self.args['arg1']['val'], int):
+        if type(self.args['arg1']['val']) != int:
             sys.exit(53)
         if self.args['arg1']['val'] < 0 or self.args['arg1']['val'] > 1114111:
             sys.exit(58)
@@ -617,7 +624,7 @@ class Instruction:
 
     def __stri2ints(self, m):
         self.__check_stack_two_operands(m)
-        if not isinstance(self.args['arg2']['val'], str) or not isinstance(self.args['arg3']['val'], int):
+        if type(self.args['arg2']['val']) != str or type(self.args['arg3']['val']) != int:
             sys.exit(53)
         if self.args['arg3']['val'] < 0 or self.args['arg3']['val'] >= len(self.args['arg2']['val']):
             sys.exit(58)
@@ -627,25 +634,29 @@ class Instruction:
         self.__check_stack_two_operands(m)
         if self.args['arg1']['val'] not in m.xml_parser.labels:
             sys.exit(52)
-        if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])) \
-                and (type(self.args['arg2']['val']) is not Nil and type(self.args['arg3']['val']) is not Nil):
+        if (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+            and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))) or \
+                type(self.args['arg2']['val']) is Nil or type(self.args['arg3']['val']) is Nil:
+            if self.args['arg2']['val'] == self.args['arg3']['val']:
+                m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
+            elif type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
+                m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
+        else:
             sys.exit(53)
-        if self.args['arg2']['val'] == self.args['arg3']['val']:
-            m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
-        elif type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
-            m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
 
     def __jumpifneqs(self, m):
         self.__check_stack_two_operands(m)
         if self.args['arg1']['val'] not in m.xml_parser.labels:
             sys.exit(52)
-        if not isinstance(self.args['arg2']['val'], type(self.args['arg3']['val'])) \
-                and (type(self.args['arg2']['val']) is not Nil and type(self.args['arg3']['val']) is not Nil):
+        if (isinstance(self.args['arg2']['val'], type(self.args['arg3']['val']))
+            and isinstance(self.args['arg3']['val'], type(self.args['arg2']['val']))) or \
+                type(self.args['arg2']['val']) is Nil or type(self.args['arg3']['val']) is Nil:
+            if type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
+                pass
+            elif self.args['arg2']['val'] != self.args['arg3']['val']:
+                m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
+        else:
             sys.exit(53)
-        if type(self.args['arg2']['val']) is Nil and type(self.args['arg3']['val']) is Nil:
-            pass
-        elif self.args['arg2']['val'] != self.args['arg3']['val']:
-            m.ins_pointer = m.xml_parser.labels[self.args['arg1']['val']] - 1
 
     def __int2float(self, m):
         self.__check_dest_var()

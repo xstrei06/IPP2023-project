@@ -1,3 +1,4 @@
+import sys
 from instruction import Instruction
 from frame import Frame
 from xmlparser import XMLParser
@@ -23,6 +24,8 @@ class Main:
         self.hot = 0
         self.hot_order = 0
         self.vars = 0
+
+        self.exit_code = 0
 
         self.global_frame = Frame()
         self.temporary_frame = None
@@ -53,9 +56,11 @@ if __name__ == "__main__":
 
     while True:
         main.ins_pointer += 1
-        if main.ins_pointer == len(main.instructions):
+        if main.ins_pointer >= len(main.instructions):
             break
         main.instructions[main.ins_pointer].execute(main)
 
     if main.stats.stats_file is not None:
         main.stats.print_stats(main)
+
+    sys.exit(main.exit_code)

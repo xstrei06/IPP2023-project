@@ -64,7 +64,7 @@ class ArgumentParser:
         if not self.src_opened:
             self.src_opened = True
             if self.source is None:
-                return sys.stdin.readlines()
+                return sys.stdin.read()
             src = open(self.source, "r")
             return src.read()
         else:
