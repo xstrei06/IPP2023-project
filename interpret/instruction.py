@@ -320,6 +320,8 @@ class Instruction:
 
     def __read(self, m):
         self.__check_dest_var()
+        if self.args['arg2']['val'] not in ['int', 'bool', 'string', 'float']:
+            sys.exit(32)
         if m.input_in == 'stdin':
             try:
                 read_in = input()
@@ -347,7 +349,7 @@ class Instruction:
                             except ValueError:
                                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
                     else:
-                        sys.exit(57)
+                        sys.exit(32)
             except EOFError:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
         else:
@@ -378,7 +380,7 @@ class Instruction:
                             except ValueError:
                                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
                     else:
-                        sys.exit(57)
+                        sys.exit(32)
                 except EOFError:
                     self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
                 except IndexError:
@@ -409,7 +411,7 @@ class Instruction:
 
     def __strlen(self, m):
         self.__check_dest_var()
-        if type(self.args['arg2']['val']) != str or self.args['arg2']['type'] != 'string':
+        if type(self.args['arg2']['val']) != str:
             sys.exit(53)
         else:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], len(self.args['arg2']['val']))
