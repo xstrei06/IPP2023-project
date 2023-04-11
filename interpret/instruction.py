@@ -85,6 +85,12 @@ class Instruction:
                 else:
                     self.args[i.tag]['val'] = self.__get_frame(i.text, glob_frame, temp_frame,
                                                                local_frame).get_var(i.text[3:])
+                    if i.tag == 'arg1' and self.args[i.tag]['val'] is None and \
+                            (self.opcode == 'PUSHS' or self.opcode == 'WRITE' or
+                             self.opcode == 'DPRINT' or self.opcode == 'EXIT'):
+                        sys.exit(56)
+                    elif i.tag != 'arg1' and self.args[i.tag]['val'] is None and self.opcode != 'TYPE':
+                        sys.exit(56)
             elif i.attrib["type"] == "int":
                 try:
                     self.args[i.tag] = {'val': int(i.text, 0), 'type': 'int'}
@@ -441,8 +447,12 @@ class Instruction:
         elif self.args['arg2']['type'] == 'var' and self.args['arg2']['val'] is None:
             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], '')
         elif self.args['arg2']['type'] == 'var':
-            if type(self.args['arg2']['val']) == int:
+            if self.args['arg2']['val'] is None:
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], '')
+            elif type(self.args['arg2']['val']) == int:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'int')
+            elif type(self.args['arg2']['val']) == float:
+                self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'float')
             elif type(self.args['arg2']['val']) == str:
                 if self.args['arg2']['val'] is True or self.args['arg2']['val'] is False:
                     self.args['arg1']['frame'].change_var(self.args['arg1']['var'], 'bool')
