@@ -3,6 +3,12 @@ import sys
 import os
 
 
+class ArgparseOverride(argparse.ArgumentParser):
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        self.exit(10, '%s: error: %s\n' % (self.prog, message))
+
+
 class ArgumentParser:
     def __init__(self):
         self.parser = None
@@ -15,8 +21,8 @@ class ArgumentParser:
         self.src_opened = False
 
     def set_parser(self):
-        self.parser = argparse.ArgumentParser(usage='interpret.py [--help] [--source=file] [--input=file]',
-                                              add_help=False, formatter_class=argparse.RawTextHelpFormatter)
+        self.parser = ArgparseOverride(usage='interpret.py [--help] [--source=file] [--input=file]',
+                                       add_help=False, formatter_class=argparse.RawTextHelpFormatter)
         self.parser.add_argument('--help', action="store_true",
                                  help='Display help message and exit (if no other arguments are specified).')
         self.parser.add_argument("--source", metavar="file", type=self.__valid_file, required=False,
@@ -45,8 +51,7 @@ class ArgumentParser:
         self.input = self.args.input
         self.stats_file = self.args.stats
         if self.args.help and len(sys.argv) > 2:
-            print("Error: Invalid argument combination.", file=sys.stderr)
-            sys.exit(10)
+            self.parser.error("Invalid arguments.")
         elif self.args.help:
             self.parser.print_help()
             sys.exit(0)

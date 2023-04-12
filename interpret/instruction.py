@@ -327,6 +327,7 @@ class Instruction:
                 read_in = input()
                 if read_in == '':
                     self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
+                else:
                     if self.args['arg2']['val'] == 'int':
                         try:
                             self.args['arg1']['frame'].change_var(self.args['arg1']['var'], int(read_in, 0))
@@ -682,7 +683,7 @@ class Instruction:
             sys.exit(53)
         if self.args['arg2']['frame'] is None:
             sys.exit(55)
-        if self.args['arg2']['var'] not in self.args['arg1']['frame'].frame:
+        if self.args['arg2']['var'] not in self.args['arg2']['frame'].frame:
             sys.exit(54)
         if type(self.args['arg2']['val']) != float or type(self.args['arg3']['val']) != float:
             sys.exit(53)

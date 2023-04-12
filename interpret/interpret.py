@@ -2,7 +2,7 @@ import sys
 from instruction import Instruction
 from frame import Frame
 from xmlparser import XMLParser
-from argparser import ArgumentParser
+from argumentparser import ArgumentParser
 from statistics import Statistics
 
 
