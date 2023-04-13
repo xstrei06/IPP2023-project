@@ -200,21 +200,24 @@ class Instruction:
 
     def __add(self, m):
         self.__check_dest_var()
-        if not (type(self.args['arg2']['val']) in [int, float] and type(self.args['arg3']['val']) in [int, float]):
+        if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
+                (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] + self.args['arg3']['val'])
 
     def __sub(self, m):
         self.__check_dest_var()
-        if not (type(self.args['arg2']['val']) in [int, float] and type(self.args['arg3']['val']) in [int, float]):
+        if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
+                (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] - self.args['arg3']['val'])
 
     def __mul(self, m):
         self.__check_dest_var()
-        if not (type(self.args['arg2']['val']) in [int, float] and type(self.args['arg3']['val']) in [int, float]):
+        if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
+                (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                               self.args['arg2']['val'] * self.args['arg3']['val'])
@@ -525,19 +528,22 @@ class Instruction:
 
     def __adds(self, m):
         self.__check_stack_two_operands(m)
-        if type(self.args['arg2']['val']) != int or type(self.args['arg3']['val']) != int:
+        if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
+                (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
         m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] + self.args['arg3']['val']})
 
     def __subs(self, m):
         self.__check_stack_two_operands(m)
-        if type(self.args['arg2']['val']) != int or type(self.args['arg3']['val']) != int:
+        if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
+                (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
         m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
 
     def __muls(self, m):
         self.__check_stack_two_operands(m)
-        if type(self.args['arg2']['val']) != int or type(self.args['arg3']['val']) != int:
+        if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
+                (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
         m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] * self.args['arg3']['val']})
 
@@ -679,12 +685,6 @@ class Instruction:
 
     def __div(self, m):
         self.__check_dest_var()
-        if self.args['arg2']['type'] != 'var':
-            sys.exit(53)
-        if self.args['arg2']['frame'] is None:
-            sys.exit(55)
-        if self.args['arg2']['var'] not in self.args['arg2']['frame'].frame:
-            sys.exit(54)
         if type(self.args['arg2']['val']) != float or type(self.args['arg3']['val']) != float:
             sys.exit(53)
         if self.args['arg3']['val'] == 0:
