@@ -19,7 +19,7 @@ class Main:
         self.instructions = self.__get_instruction_objects()
         self.instruction_count = 0
 
-        self.stats = Statistics(self.parser.stats_file, self.parser.args)
+        self.stats = Statistics(self.parser.stats_file, self.parser.stats)
         self.insts = 0
         self.hot = 0
         self.hot_order = 0

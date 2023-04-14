@@ -43,6 +43,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self.source = self.args.source
         self.input = self.args.input
         self.stats_file = self.args.stats
+        self.__set_stats(self.args)
         if self.args.help and len(sys.argv) > 2:
             self.error("Invalid arguments.")
         elif self.args.help:
@@ -78,6 +79,25 @@ class ArgumentParser(argparse.ArgumentParser):
             return inp
         else:
             return None
+
+    def __set_stats(self, args):
+        if args.stats is None and \
+                (args.insts or args.hot or args.vars or
+                 args.frequent or args.print or args.eol):
+            self.error("Error: Invalid argument combination.")
+        for arg in sys.argv:
+            if arg == "--insts":
+                self.stats.append({'arg': 'insts'})
+            elif arg == "--hot":
+                self.stats.append({'arg': 'hot'})
+            elif arg == "--vars":
+                self.stats.append({'arg': 'vars'})
+            elif arg == "--frequent":
+                self.stats.append({'arg': 'frequent'})
+            elif arg.startswith("--print"):
+                self.stats.append({'arg': 'print', 'value': args.print})
+            elif arg == "--eol":
+                self.stats.append({'arg': 'eol'})
 
     def error(self, message):
         self.print_usage(sys.stderr)

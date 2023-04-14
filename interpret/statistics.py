@@ -2,10 +2,10 @@ import sys
 
 
 class Statistics:
-    def __init__(self, file, args):
+    def __init__(self, file, stats):
         self.stats = []
         self.stats_file = file
-        self.__set_stats(args)
+        self.stats = stats
         self.frequent = {
             'MOVE': 0,
             'CREATEFRAME': 0,
@@ -61,26 +61,6 @@ class Statistics:
             'FLOAT2INT': 0,
             'DIV': 0,
         }
-
-    def __set_stats(self, args):
-        if args.stats is None and \
-                (args.insts or args.hot or args.vars or
-                 args.frequent or args.print or args.eol):
-            print("Error: Invalid argument combination.", file=sys.stderr)
-            sys.exit(10)
-        for arg in sys.argv:
-            if arg == "--insts":
-                self.stats.append({'arg': 'insts'})
-            elif arg == "--hot":
-                self.stats.append({'arg': 'hot'})
-            elif arg == "--vars":
-                self.stats.append({'arg': 'vars'})
-            elif arg == "--frequent":
-                self.stats.append({'arg': 'frequent'})
-            elif arg.startswith("--print"):
-                self.stats.append({'arg': 'print', 'value': args.print})
-            elif arg == "--eol":
-                self.stats.append({'arg': 'eol'})
 
     def print_stats(self, m):
         file = open(self.stats_file, "w")
