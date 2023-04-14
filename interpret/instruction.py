@@ -525,17 +525,17 @@ class Instruction:
         if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
                 (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
-        if type(self.args['arg2']['val']) == float:
-            m.data_stack.insert(0, {'type': 'float', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
+        elif type(self.args['arg2']['val']) == float:
+            m.data_stack.insert(0, {'type': 'float', 'val': self.args['arg2']['val'] + self.args['arg3']['val']})
         else:
-            m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
+            m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] + self.args['arg3']['val']})
 
     def __subs(self, m):
         self.__check_stack_two_operands(m)
         if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
                 (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
-        if type(self.args['arg2']['val']) == float:
+        elif type(self.args['arg2']['val']) == float:
             m.data_stack.insert(0, {'type': 'float', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
         else:
             m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
@@ -545,10 +545,10 @@ class Instruction:
         if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
                 (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
-        if type(self.args['arg2']['val']) == float:
-            m.data_stack.insert(0, {'type': 'float', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
+        elif type(self.args['arg2']['val']) == float:
+            m.data_stack.insert(0, {'type': 'float', 'val': self.args['arg2']['val'] * self.args['arg3']['val']})
         else:
-            m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
+            m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] * self.args['arg3']['val']})
 
     def __idivs(self, m):
         self.__check_stack_two_operands(m)
