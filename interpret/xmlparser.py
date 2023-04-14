@@ -117,6 +117,8 @@ class XMLParser:
             except KeyError:
                 sys.exit(32)
             for arg in instruction:
+                if 'type' not in arg.attrib:
+                    sys.exit(32)
                 if arg.text is not None:
                     arg.text = arg.text.strip()
                 if arg.tag not in self.instruction_args[instruction.attrib["opcode"]]:
