@@ -17,7 +17,6 @@ class Main:
         self.xml_parser = XMLParser()
         self.xml_parser.parse_xml(source)
         self.instructions = self.__get_instruction_objects()
-        self.instruction_count = 0
 
         self.stats = Statistics(self.parser.stats_file, self.parser.stats)
         self.insts = 0

@@ -136,7 +136,7 @@ class Instruction:
         elif var.startswith("LF@"):
             return local_frame
         else:
-            sys.exit(55)
+            sys.exit(32)
 
     def execute(self, m):
         self.__set_args(self.instruction, m.global_frame, m.temporary_frame, m.frame_stack[0])
@@ -228,11 +228,8 @@ class Instruction:
             sys.exit(53)
         if self.args['arg3']['val'] == 0:
             sys.exit(57)
-        try:
-            self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
+        self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
                                                   self.args['arg2']['val'] // self.args['arg3']['val'])
-        except ZeroDivisionError:
-            sys.exit(57)
 
     def __lt(self, m):
         self.__check_dest_var()
@@ -439,16 +436,13 @@ class Instruction:
             sys.exit(53)
         if type(self.args['arg3']['val']) != str:
             sys.exit(53)
-        try:
-            if self.args['arg2']['val'] >= len(self.args['arg1']['val']) or self.args['arg2']['val'] < 0\
-                    or len(self.args['arg3']['val']) == 0:
-                sys.exit(58)
-            first = self.args['arg1']['val'][:self.args['arg2']['val']]
-            second = self.args['arg1']['val'][self.args['arg2']['val'] + 1:]
-            self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
-                                                  first + self.args['arg3']['val'][0] + second)
-        except TypeError:
-            sys.exit(53)
+        if self.args['arg2']['val'] >= len(self.args['arg1']['val']) or self.args['arg2']['val'] < 0\
+                or len(self.args['arg3']['val']) == 0:
+            sys.exit(58)
+        first = self.args['arg1']['val'][:self.args['arg2']['val']]
+        second = self.args['arg1']['val'][self.args['arg2']['val'] + 1:]
+        self.args['arg1']['frame'].change_var(self.args['arg1']['var'],
+                                              first + self.args['arg3']['val'][0] + second)
 
     def __type(self, m):
         self.__check_dest_var()
@@ -521,7 +515,7 @@ class Instruction:
         print(f"Obsah lokalniho ramce: {m.frame_stack[0].frame}", file=sys.stderr)
         print(f"Obsah docasneho ramce: {m.temporary_frame.frame}", file=sys.stderr)
         print(f"Obsah globalniho ramce: {m.global_frame.frame}", file=sys.stderr)
-        print(f"Pocet vykonanych instrukci: {m.instruction_count}", file=sys.stderr)
+        print(f"Pocet vykonanych instrukci: {m.insts}", file=sys.stderr)
 
     def __clears(self, m):
         m.data_stack.clear()
@@ -531,21 +525,30 @@ class Instruction:
         if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
                 (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
-        m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] + self.args['arg3']['val']})
+        if type(self.args['arg2']['val']) == float:
+            m.data_stack.insert(0, {'type': 'float', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
+        else:
+            m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
 
     def __subs(self, m):
         self.__check_stack_two_operands(m)
         if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
                 (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
-        m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
+        if type(self.args['arg2']['val']) == float:
+            m.data_stack.insert(0, {'type': 'float', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
+        else:
+            m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
 
     def __muls(self, m):
         self.__check_stack_two_operands(m)
         if not ((type(self.args['arg2']['val']) == int and type(self.args['arg3']['val']) == int) or
                 (type(self.args['arg2']['val']) == float and type(self.args['arg3']['val']) == float)):
             sys.exit(53)
-        m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] * self.args['arg3']['val']})
+        if type(self.args['arg2']['val']) == float:
+            m.data_stack.insert(0, {'type': 'float', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
+        else:
+            m.data_stack.insert(0, {'type': 'int', 'val': self.args['arg2']['val'] - self.args['arg3']['val']})
 
     def __idivs(self, m):
         self.__check_stack_two_operands(m)
@@ -594,7 +597,7 @@ class Instruction:
 
     def __ands(self, m):
         self.__check_stack_two_operands(m)
-        if not isinstance(self.args['arg2']['val'], bool) or not isinstance(self.args['arg3']['val'], bool):
+        if type(self.args['arg2']['val']) != bool or type(self.args['arg3']['val']) != bool:
             sys.exit(53)
         if self.args['arg2']['val'] and self.args['arg3']['val']:
             m.data_stack.insert(0, {'type': 'bool', 'val': True})
@@ -603,7 +606,7 @@ class Instruction:
 
     def __ors(self, m):
         self.__check_stack_two_operands(m)
-        if not isinstance(self.args['arg2']['val'], bool) or not isinstance(self.args['arg3']['val'], bool):
+        if type(self.args['arg2']['val']) != bool or type(self.args['arg3']['val']) != bool:
             sys.exit(53)
         if self.args['arg2']['val'] or self.args['arg3']['val']:
             m.data_stack.insert(0, {'type': 'bool', 'val': True})
@@ -614,7 +617,7 @@ class Instruction:
         if len(m.data_stack) < 1:
             sys.exit(56)
         self.args['arg1'] = m.data_stack.pop()
-        if not isinstance(self.args['arg1']['val'], bool):
+        if type(self.args['arg1']['val']) != bool:
             sys.exit(53)
         if self.args['arg1']['val']:
             m.data_stack.insert(0, {'type': 'bool', 'val': False})
@@ -694,7 +697,7 @@ class Instruction:
 
     def __check_dest_var(self):
         if self.args['arg1']['type'] != 'var':
-            sys.exit(53)
+            sys.exit(32)
 
     def __check_var(self, key):
         if self.args[key]['frame'] is None:
