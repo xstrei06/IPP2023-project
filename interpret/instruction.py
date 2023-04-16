@@ -162,8 +162,8 @@ class Instruction:
                 m.hot_order = self.order_orig
         m.stats.frequent[self.opcode] += 1
 
-    """Nasleduji metody pro provedeni jednotlivych instrukci"""
-    """Zakladni instrukce"""
+    # Nasleduji metody pro provedeni jednotlivych instrukci
+    # Zakladni instrukce
     def __move(self, m) -> None:
         self.__check_dest_var()
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'], self.args['arg2']['val'])
@@ -529,7 +529,7 @@ class Instruction:
         print(f"Obsah globalniho ramce: {m.global_frame.frame}", file=sys.stderr)
         print(f"Pocet vykonanych instrukci: {m.insts}", file=sys.stderr)
 
-    """Zasobnikove instrukce rozsireni STACK"""
+    # Zasobnikove instrukce rozsireni STACK
     def __clears(self, m) -> None:
         m.data_stack.clear()
 
@@ -683,7 +683,7 @@ class Instruction:
         else:
             sys.exit(53)
 
-    """Instrukce specificke pro rozsireni FLOAT"""
+    # Instrukce specificke pro rozsireni FLOAT
     def __int2float(self, m) -> None:
         self.__check_dest_var()
         if self.args['arg2']['val'] is None:

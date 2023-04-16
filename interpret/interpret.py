@@ -16,19 +16,20 @@ from statistics import Statistics
 class Main:
     """Trida pro hlavni beh programu"""
     def __init__(self):
-        """Zpracovani argumentu a nacteni obsahu vstupnich souboru"""
+
+        # Zpracovani argumentu a nacteni obsahu vstupnich souboru
         self.parser = ArgumentParser()
         self.parser.set_parser()
         self.parser.parse()
         source = self.parser.read_source()
         self.input_in = self.parser.read_input()
 
-        """Zpracovani vstupniho XML"""
+        # Zpracovani vstupniho XML
         self.xml_parser = XMLParser()
         self.xml_parser.parse_xml(source)
         self.instructions = self.__get_instruction_objects()
 
-        """Nastaveni statistik"""
+        # Nastaveni statistik
         self.stats = Statistics(self.parser.stats_file, self.parser.stats)
         self.insts = 0
         self.hot = 0
@@ -37,7 +38,7 @@ class Main:
 
         self.exit_code = 0  # navratova hodnota po skonceni interpetace programu
 
-        """Inicializace ramcu, zasobniku a ukazatele na instrukci"""
+        # Inicializace ramcu, zasobniku a ukazatele na instrukci
         self.global_frame = Frame()
         self.temporary_frame = None
         self.frame_stack = [None]

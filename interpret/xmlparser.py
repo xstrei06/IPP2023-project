@@ -107,14 +107,14 @@ class XMLParser:
             sys.exit(32)
         prev_order = 0
         for i in self.instructions:
-            """Kontrola duplicit v poradi instrukci"""
+            # Kontrola duplicit v poradi instrukci
             if int(i.attrib["order"]) == prev_order:
                 sys.exit(32)
             prev_order = int(i.attrib["order"])
             if int(i.attrib["order"]) <= 0:
                 sys.exit(32)
         for i in range(len(self.instructions)):
-            """Nastaveni nesouvisleho poradi instrukci na souvisle indexy pole"""
+            # Nastaveni nesouvisleho poradi instrukci na souvisle indexy pole
             self.instructions[i].attrib["order_orig"] = self.instructions[i].attrib["order"]  # pro ucel statistik
             self.instructions[i].attrib["order"] = i
             self.instructions[i].attrib["opcode"] = self.instructions[i].attrib["opcode"].upper()
