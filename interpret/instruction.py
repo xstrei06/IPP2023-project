@@ -1,5 +1,11 @@
+"""
+FIT VUT IPP 2023
+Projekt 2 - Interpret XML reprezentace jazyka IPPcode23
+Autor: Jaroslav Streit (xstrei06)
+Soubor: instruction.py
+"""
+
 import sys
-import numbers
 import re
 from frame import Frame
 from nil_type import Nil
@@ -12,7 +18,7 @@ class Instruction:
         self.args = {}
         self.order = int(instruction.attrib["order"])
         self.order_orig = int(instruction.attrib["order_orig"])
-        self.invoke_method = {
+        self.invoke_method = {  # slovnik pro volani odpovidajici metody podle opcode instrukce
             'MOVE': self.__move,
             'CREATEFRAME': self.__createframe,
             'PUSHFRAME': self.__pushframe,
@@ -72,6 +78,7 @@ class Instruction:
         self.hot = 0
 
     def __set_args(self, inst, glob_frame, temp_frame, local_frame):
+        """Metoda pro nastaveni argumentu instrukce"""
         for i in inst:
             if i.attrib["type"] == "var":
                 if re.match(r'^(LF|GF|TF)@[a-zA-Z_$&%*!?-][a-zA-Z_$&%*!?0-9-]*$', i.text) is None:
@@ -129,6 +136,7 @@ class Instruction:
                 sys.exit(32)
 
     def __get_frame(self, var, glob_frame, temp_frame, local_frame):
+        """Metoda pro ziskani ramce promenne"""
         if var.startswith("GF@"):
             return glob_frame
         elif var.startswith("TF@"):
@@ -139,6 +147,8 @@ class Instruction:
             sys.exit(32)
 
     def execute(self, m):
+        """Metoda pro provedeni instrukce
+        Metoda take sbira nektere statistiky"""
         self.__set_args(self.instruction, m.global_frame, m.temporary_frame, m.frame_stack[0])
         self.invoke_method[self.opcode](m)
         if self.opcode != "LABEL" and self.opcode != 'BREAK' and self.opcode != 'DPRINT':
@@ -152,6 +162,8 @@ class Instruction:
                 m.hot_order = self.order_orig
         m.stats.frequent[self.opcode] += 1
 
+    """Nasleduji metody pro provedeni jednotlivych instrukci"""
+    """Zakladni instrukce"""
     def __move(self, m):
         self.__check_dest_var()
         self.args['arg1']['frame'].change_var(self.args['arg1']['var'], self.args['arg2']['val'])
@@ -322,7 +334,7 @@ class Instruction:
         self.__check_dest_var()
         if self.args['arg2']['val'] not in ['int', 'bool', 'string', 'float']:
             sys.exit(32)
-        if m.input_in == 'stdin':
+        if m.input_in == 'stdin':  # nacitani ze standardniho vstupu
             try:
                 read_in = input()
                 if read_in == '':
@@ -353,7 +365,7 @@ class Instruction:
                         sys.exit(32)
             except EOFError:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
-        else:
+        else:  # nacitani ze souboru
             if len(m.input_in) == 0:
                 self.args['arg1']['frame'].change_var(self.args['arg1']['var'], Nil())
             else:
@@ -517,6 +529,7 @@ class Instruction:
         print(f"Obsah globalniho ramce: {m.global_frame.frame}", file=sys.stderr)
         print(f"Pocet vykonanych instrukci: {m.insts}", file=sys.stderr)
 
+    """Zasobnikove instrukce rozsireni STACK"""
     def __clears(self, m):
         m.data_stack.clear()
 
@@ -670,6 +683,7 @@ class Instruction:
         else:
             sys.exit(53)
 
+    """Instrukce specificke pro rozsireni FLOAT"""
     def __int2float(self, m):
         self.__check_dest_var()
         if self.args['arg2']['val'] is None:
@@ -696,16 +710,19 @@ class Instruction:
                                               self.args['arg2']['val'] / self.args['arg3']['val'])
 
     def __check_dest_var(self):
+        """Metoda pro kontrolu cilove promenne"""
         if self.args['arg1']['type'] != 'var':
             sys.exit(32)
 
     def __check_var(self, key):
+        """Kontrola existence promenne"""
         if self.args[key]['frame'] is None:
             sys.exit(55)
         if self.args[key]['var'] not in self.args[key]['frame'].frame and self.opcode != 'DEFVAR':
             sys.exit(54)
 
     def __check_stack_two_operands(self, m):
+        """Nacteni operandu zasobnikovych instrukci pro instrukce se dvema operandy"""
         if len(m.data_stack) < 2:
             sys.exit(56)
         self.args['arg3'] = m.data_stack.pop(0)

@@ -1,14 +1,22 @@
+"""
+FIT VUT IPP 2023
+Projekt 2 - Interpret XML reprezentace jazyka IPPcode23
+Autor: Jaroslav Streit (xstrei06)
+Soubor: xmlparser.py
+"""
+
 import sys
 import xml.etree.ElementTree as ET
 import re
 
 
 class XMLParser:
+    """Trida pro zpracovani XML vstupu"""
     def __init__(self):
         self.root = None
-        self.instructions = []
+        self.instructions = []  # pole zparsovanych XML instrukci
         self.labels = {}
-        self.instruction_args = {
+        self.instruction_args = {  # slovnik instrukci s poctem argumentu a jejich oznacenim pro kontrolu spravnosti
             'MOVE': [2, "arg1", "arg2"],
             'CREATEFRAME': [0],
             'PUSHFRAME': [0],
@@ -65,12 +73,14 @@ class XMLParser:
         }
 
     def parse_xml(self, xmlsource):
+        """Metoda pro zparsovani XML vstupu a kontrolu spravnosti"""
         self.check_root(xmlsource)
         self.check_instructions()
         self.check_args()
         self.check_labels()
 
     def check_root(self, xmlsource):
+        """Metoda pro nacteni XML a kontrolu spravnosti hlavicky (korenoveho elementu)"""
         try:
             self.root = ET.fromstring(xmlsource)
         except ET.ParseError:
@@ -84,6 +94,7 @@ class XMLParser:
             sys.exit(32)
 
     def check_instructions(self):
+        """Metoda pro kontrolu spravnosti instrukci a nacteni instrukci do pole"""
         self.instructions = [i for i in self.root.iter("instruction")]
         if len(self.instructions) != len(self.root):
             sys.exit(32)
@@ -96,20 +107,20 @@ class XMLParser:
             sys.exit(32)
         prev_order = 0
         for i in self.instructions:
+            """Kontrola duplicit v poradi instrukci"""
             if int(i.attrib["order"]) == prev_order:
                 sys.exit(32)
             prev_order = int(i.attrib["order"])
             if int(i.attrib["order"]) <= 0:
                 sys.exit(32)
         for i in range(len(self.instructions)):
-            self.instructions[i].attrib["order_orig"] = self.instructions[i].attrib["order"]
+            """Nastaveni nesouvisleho poradi instrukci na souvisle indexy pole"""
+            self.instructions[i].attrib["order_orig"] = self.instructions[i].attrib["order"]  # pro ucel statistik
             self.instructions[i].attrib["order"] = i
             self.instructions[i].attrib["opcode"] = self.instructions[i].attrib["opcode"].upper()
 
-    def get_instructions(self):
-        return self.instructions
-
     def check_args(self):
+        """Metoda pro kontrolu spravnosti argumentu instrukci"""
         for instruction in self.instructions:
             try:
                 if len(instruction) != self.instruction_args[instruction.attrib["opcode"]][0]:
@@ -127,9 +138,10 @@ class XMLParser:
                     if arg.text is None:
                         arg.text = ""
                     arg.text = re.sub(r'\\(\d{3})', lambda x: chr(
-                        int(x.group(1))), arg.text)
+                        int(x.group(1))), arg.text)  # nahrazeni dekadickych escape sekvenci odpovidajicim znakem
 
     def check_labels(self):
+        """Metoda pro kontrolu duplicit labelu a nacteni labelu do slovniku s jejich poradim"""
         labels = []
         for instruction in self.instructions:
             if instruction.attrib["opcode"] == "LABEL":
@@ -139,3 +151,6 @@ class XMLParser:
                 labels.append(instruction[0].text)
         if len(labels) != len(set(labels)):
             sys.exit(52)
+
+    def get_instructions(self):
+        return self.instructions

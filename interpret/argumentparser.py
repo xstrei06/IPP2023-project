@@ -1,21 +1,30 @@
+"""
+FIT VUT IPP 2023
+Projekt 2 - Interpret XML reprezentace jazyka IPPcode23
+Autor: Jaroslav Streit (xstrei06)
+Soubor: argumentparser.py
+"""
+
 import argparse
 import sys
 import os
 
 
 class ArgumentParser(argparse.ArgumentParser):
+    """Trida pro zpracovani vstupnich argumentu programu
+    Trida dedi z tridy argparse.ArgumentParser"""
+
     def __init__(self):
         super().__init__(usage='interpret.py [--help] [--source=file] [--input=file]',
-                         add_help=False, formatter_class=argparse.RawTextHelpFormatter)
+                         add_help=False, formatter_class=argparse.RawTextHelpFormatter)  # inicializace parent class
         self.args = None
         self.source = None
         self.input = None
         self.stats_file = None
         self.stats = []
-        self.in_opened = False
-        self.src_opened = False
 
     def set_parser(self):
+        """Metoda pro astaveni ocekavanych argumentu a jejich popisu v napovede"""
         self.add_argument('--help', action="store_true",
                           help='Display help message and exit (if no other arguments are specified).')
         self.add_argument("--source", metavar="file", type=self.__valid_file, required=False,
@@ -39,6 +48,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self.epilog = "Note: At least one of the arguments --source=file or --input=file must be specified."
 
     def parse(self):
+        """Metoda pro zpracovani argumentu"""
         self.args = self.parse_args()
         self.source = self.args.source
         self.input = self.args.input
@@ -53,34 +63,30 @@ class ArgumentParser(argparse.ArgumentParser):
             self.error("Either source or input has to be specified.")
 
     def __valid_file(self, filename):
+        """Metoda pro kontrolu existence vstupnich souboru"""
         if not os.path.isfile(filename):
             print(f"{filename} is not a valid file.", file=sys.stderr)
             sys.exit(11)
         return filename
 
     def read_source(self):
-        if not self.src_opened:
-            self.src_opened = True
-            if self.source is None:
-                return sys.stdin.read()
-            src = open(self.source, "r")
-            return src.read()
-        else:
-            return None
+        """Metoda pro nacteni vstupniho XML"""
+        if self.source is None:
+            return sys.stdin.read()
+        src = open(self.source, "r")
+        return src.read()
 
     def read_input(self):
-        if not self.in_opened:
-            self.in_opened = True
-            if self.input is None:
-                return "stdin"
-            inp = open(self.input, "r")
-            inp = inp.readlines()
-            inp = [i.strip() for i in inp]
-            return inp
-        else:
-            return None
+        """Metoda pro nacteni uzivatelskeho vstupu"""
+        if self.input is None:
+            return "stdin"
+        inp = open(self.input, "r")
+        inp = inp.readlines()
+        inp = [i.strip() for i in inp]
+        return inp
 
     def __set_stats(self, args):
+        """Metoda pro nastaveni statistik"""
         if args.stats is None and \
                 (args.insts or args.hot or args.vars or
                  args.frequent or args.print or args.eol):
@@ -99,6 +105,7 @@ class ArgumentParser(argparse.ArgumentParser):
             elif arg == "--eol":
                 self.stats.append({'arg': 'eol'})
 
-    def error(self, message):
+    def __error(self, message):
+        """Override funkce error z parent class pro spravny exit code"""
         self.print_usage(sys.stderr)
         self.exit(10, '%s: error: %s\n' % (self.prog, message))

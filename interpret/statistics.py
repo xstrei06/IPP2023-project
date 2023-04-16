@@ -1,12 +1,18 @@
-import sys
+"""
+FIT VUT IPP 2023
+Projekt 2 - Interpret XML reprezentace jazyka IPPcode23
+Autor: Jaroslav Streit (xstrei06)
+Soubor: statistics.py
+"""
 
 
 class Statistics:
+    """Trida zpracovani a vypis statistik"""
     def __init__(self, file, stats):
         self.stats = []
         self.stats_file = file
         self.stats = stats
-        self.frequent = {
+        self.frequent = {  # slovnik pro pocet vyskytu instrukci podle opcode
             'MOVE': 0,
             'CREATEFRAME': 0,
             'PUSHFRAME': 0,
@@ -63,6 +69,7 @@ class Statistics:
         }
 
     def print_stats(self, m):
+        """Metoda pro vypis nasbiranych statistik"""
         file = open(self.stats_file, "w")
         for stat in self.stats:
             if stat['arg'] == 'insts':
