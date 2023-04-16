@@ -13,19 +13,19 @@ class Frame:
     def __init__(self):
         self.frame = {}
 
-    def add_var(self, var):
+    def add_var(self, var) -> None:
         """Metoda pro pridani nove promenne do ramce (DEFVAR)"""
         if var in self.frame:
             sys.exit(52)
         self.frame[var] = None
 
-    def change_var(self, var, value):
+    def change_var(self, var, value) -> None:
         """Metoda pro zmenu hodnoty promenne"""
         if var not in self.frame:
             sys.exit(54)
         self.frame[var] = value
 
-    def get_var(self, var):
+    def get_var(self, var) -> str:
         """Metoda pro ziskani hodnoty promenne"""
         if var not in self.frame:
             sys.exit(54)

@@ -68,7 +68,7 @@ class Statistics:
             'DIV': 0,
         }
 
-    def print_stats(self, m):
+    def print_stats(self, m) -> None:
         """Metoda pro vypis nasbiranych statistik"""
         file = open(self.stats_file, "w")
         for stat in self.stats:

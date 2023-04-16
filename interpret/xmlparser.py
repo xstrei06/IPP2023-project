@@ -72,14 +72,14 @@ class XMLParser:
             'DIV': [3, "arg1", "arg2", "arg3"],
         }
 
-    def parse_xml(self, xmlsource):
+    def parse_xml(self, xmlsource) -> None:
         """Metoda pro zparsovani XML vstupu a kontrolu spravnosti"""
         self.check_root(xmlsource)
         self.check_instructions()
         self.check_args()
         self.check_labels()
 
-    def check_root(self, xmlsource):
+    def check_root(self, xmlsource) -> None:
         """Metoda pro nacteni XML a kontrolu spravnosti hlavicky (korenoveho elementu)"""
         try:
             self.root = ET.fromstring(xmlsource)
@@ -93,7 +93,7 @@ class XMLParser:
         if self.root.attrib["language"].upper() != "IPPCODE23":
             sys.exit(32)
 
-    def check_instructions(self):
+    def check_instructions(self) -> None:
         """Metoda pro kontrolu spravnosti instrukci a nacteni instrukci do pole"""
         self.instructions = [i for i in self.root.iter("instruction")]
         if len(self.instructions) != len(self.root):
@@ -119,7 +119,7 @@ class XMLParser:
             self.instructions[i].attrib["order"] = i
             self.instructions[i].attrib["opcode"] = self.instructions[i].attrib["opcode"].upper()
 
-    def check_args(self):
+    def check_args(self) -> None:
         """Metoda pro kontrolu spravnosti argumentu instrukci"""
         for instruction in self.instructions:
             try:
@@ -140,7 +140,7 @@ class XMLParser:
                     arg.text = re.sub(r'\\(\d{3})', lambda x: chr(
                         int(x.group(1))), arg.text)  # nahrazeni dekadickych escape sekvenci odpovidajicim znakem
 
-    def check_labels(self):
+    def check_labels(self) -> None:
         """Metoda pro kontrolu duplicit labelu a nacteni labelu do slovniku s jejich poradim"""
         labels = []
         for instruction in self.instructions:
@@ -152,5 +152,5 @@ class XMLParser:
         if len(labels) != len(set(labels)):
             sys.exit(52)
 
-    def get_instructions(self):
+    def get_instructions(self) -> list:
         return self.instructions

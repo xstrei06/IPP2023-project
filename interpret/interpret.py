@@ -45,14 +45,14 @@ class Main:
         self.data_stack = []
         self.ins_pointer = -1
 
-    def __get_instruction_objects(self):
+    def __get_instruction_objects(self) -> list:
         """Metoda pro vytvoreni objektu tridy Instruction z elementu ziskanych z XML"""
         instructions = []
         for instruction in self.xml_parser.get_instructions():
             instructions.append(Instruction(instruction))
         return instructions
 
-    def count_available_vars(self):
+    def count_available_vars(self) -> None:
         """Metoda pro spocitani vsech aktualne dostupnych promennych"""
         count = len(self.global_frame.frame)
         if self.frame_stack[0] is not None:

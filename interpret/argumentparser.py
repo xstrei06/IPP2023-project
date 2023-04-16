@@ -23,7 +23,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self.stats_file = None
         self.stats = []
 
-    def set_parser(self):
+    def set_parser(self) -> None:
         """Metoda pro astaveni ocekavanych argumentu a jejich popisu v napovede"""
         self.add_argument('--help', action="store_true",
                           help='Display help message and exit (if no other arguments are specified).')
@@ -47,7 +47,7 @@ class ArgumentParser(argparse.ArgumentParser):
                           help="Writes end of line to stats file")
         self.epilog = "Note: At least one of the arguments --source=file or --input=file must be specified."
 
-    def parse(self):
+    def parse(self) -> None:
         """Metoda pro zpracovani argumentu"""
         self.args = self.parse_args()
         self.source = self.args.source
@@ -62,14 +62,14 @@ class ArgumentParser(argparse.ArgumentParser):
         if self.input is None and self.source is None:
             self.error("Either source or input has to be specified.")
 
-    def __valid_file(self, filename):
+    def __valid_file(self, filename) -> str:
         """Metoda pro kontrolu existence vstupnich souboru"""
         if not os.path.isfile(filename):
             print(f"{filename} is not a valid file.", file=sys.stderr)
             sys.exit(11)
         return filename
 
-    def read_source(self):
+    def read_source(self) -> str:
         """Metoda pro nacteni vstupniho XML"""
         if self.source is None:
             return sys.stdin.read()
@@ -85,7 +85,7 @@ class ArgumentParser(argparse.ArgumentParser):
         inp = [i.strip() for i in inp]
         return inp
 
-    def __set_stats(self, args):
+    def __set_stats(self, args) -> None:
         """Metoda pro nastaveni statistik"""
         if args.stats is None and \
                 (args.insts or args.hot or args.vars or
@@ -105,7 +105,7 @@ class ArgumentParser(argparse.ArgumentParser):
             elif arg == "--eol":
                 self.stats.append({'arg': 'eol'})
 
-    def __error(self, message):
+    def __error(self, message) -> None:
         """Override funkce error z parent class pro spravny exit code"""
         self.print_usage(sys.stderr)
         self.exit(10, '%s: error: %s\n' % (self.prog, message))
