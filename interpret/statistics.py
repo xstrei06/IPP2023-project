@@ -75,7 +75,7 @@ class Statistics:
             if stat['arg'] == 'insts':
                 print(str(m.insts), file=file, end='')
             elif stat['arg'] == 'hot':
-                print(str(m.hot), file=file, end='')
+                print(str(m.hot_order), file=file, end='')
             elif stat['arg'] == 'vars':
                 print(str(m.vars), file=file, end='')
             elif stat['arg'] == 'frequent':
